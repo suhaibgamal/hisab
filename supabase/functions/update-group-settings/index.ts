@@ -90,6 +90,14 @@ serve(async (req) => {
       }
     }
 
+    // Validate auto_approve_members is a boolean if provided
+    if (
+      auto_approve_members !== undefined &&
+      typeof auto_approve_members !== "boolean"
+    ) {
+      throw new Error("auto_approve_members must be a boolean value.");
+    }
+
     const userClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
@@ -100,7 +108,7 @@ serve(async (req) => {
       }
     );
 
-    let password_hash = undefined; // Default to undefined to not update password
+    let password_hash = null; // Default to null instead of undefined
     // Only hash password if it's provided and non-empty
     if (password?.trim()) {
       password_hash = await hashPassword(password.trim());
@@ -110,12 +118,12 @@ serve(async (req) => {
       p_group_id: group_id,
       p_name: name,
       p_description: description,
-      p_password_hash: password_hash, // Only send if password was provided
-      p_member_limit: member_limit,
-      p_invite_code_visible: invite_code_visible,
-      p_auto_approve_members: auto_approve_members,
-      p_activity_log_privacy: activity_log_privacy,
-      p_export_control: export_control,
+      p_password_hash: password_hash, // Always send password_hash (null if no password)
+      p_member_limit: member_limit ?? null,
+      p_invite_code_visible: invite_code_visible ?? null,
+      p_auto_approve_members: auto_approve_members ?? null,
+      p_activity_log_privacy: activity_log_privacy ?? null,
+      p_export_control: export_control ?? null,
     });
 
     if (rpcError) throw rpcError;
@@ -125,6 +133,7 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
+    console.error("Error in update-group-settings:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,

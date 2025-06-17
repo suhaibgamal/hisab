@@ -9,33 +9,35 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 console.log("Create Group Function Started");
 
-// PBKDF2 parameters for password hashing.
+// PBKDF2 parameters for password hashing
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LENGTH = 16; // 128 bits
 
 // Hash a password using PBKDF2
 const hashPassword = async (password: string): Promise<string> => {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
-  const key = await crypto.subtle.deriveKey(
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    { name: "PBKDF2" },
+    false,
+    ["deriveBits"]
+  );
+
+  const derivedBits = await crypto.subtle.deriveBits(
     {
       name: "PBKDF2",
-      salt: salt,
-      iterations: PBKDF2_ITERATIONS,
       hash: "SHA-256",
+      salt,
+      iterations: PBKDF2_ITERATIONS,
     },
-    await crypto.subtle.importKey(
-      "raw",
-      new TextEncoder().encode(password),
-      { name: "PBKDF2" },
-      false,
-      ["deriveKey"]
-    ),
-    { name: "AES-GCM", length: 256 },
-    true,
-    ["encrypt", "decrypt"]
+    keyMaterial,
+    256 // bits
   );
-  const keyData = await crypto.subtle.exportKey("raw", key);
-  return `${encode(salt)}:${encode(new Uint8Array(keyData))}`;
+
+  const derivedKey = new Uint8Array(derivedBits);
+  // Add version prefix for future compatibility
+  return `v1:${encode(salt)}:${encode(derivedKey)}`;
 };
 
 // --- START: Self-Contained Base64 Code ---
@@ -138,19 +140,39 @@ serve(async (req) => {
       );
     }
 
+    // Get application user ID
+    const { data: userData, error: userDataError } = await supabaseClient
+      .from("users")
+      .select("id")
+      .eq("supabase_auth_id", user.id)
+      .single();
+
+    if (userDataError || !userData) {
+      return new Response(
+        JSON.stringify({
+          error: "Error getting application user data",
+          details: userDataError,
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     // Call the database function to create the group
     const { data, error } = await supabaseClient.rpc(
       "create_group_with_manager",
       {
-        p_activity_log_privacy: body.activity_log_privacy || "managers",
-        p_auto_approve_members: body.auto_approve_members ?? true,
-        p_description: body.description || null,
-        p_export_control: body.export_control || "managers",
         p_group_name: body.name,
-        p_invite_code_visible: body.invite_code_visible ?? true,
-        p_member_limit: body.member_limit || 10,
+        p_description: body.description || null,
         p_password: body.password || null,
-        p_user_id: user.id,
+        p_member_limit: body.member_limit || 10,
+        p_invite_code_visible: body.invite_code_visible ?? true,
+        p_auto_approve_members: body.auto_approve_members ?? true,
+        p_activity_log_privacy: body.activity_log_privacy || "managers",
+        p_export_control: body.export_control || "managers",
+        p_user_id: userData.id,
       }
     );
 

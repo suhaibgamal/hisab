@@ -20,12 +20,28 @@ UPDATE public.groups
 SET export_control = 'managers'
 WHERE export_control = 'members';
 
--- Modify columns to use ENUM and new defaults
+-- Add temporary columns with new type
 ALTER TABLE public.groups
-  ALTER COLUMN activity_log_privacy TYPE privacy_level USING activity_log_privacy::privacy_level,
-  ALTER COLUMN activity_log_privacy SET DEFAULT 'managers',
-  ALTER COLUMN export_control TYPE privacy_level USING export_control::privacy_level,
-  ALTER COLUMN export_control SET DEFAULT 'managers';
+  ADD COLUMN activity_log_privacy_new privacy_level,
+  ADD COLUMN export_control_new privacy_level;
+
+-- Copy data to new columns
+UPDATE public.groups
+SET 
+  activity_log_privacy_new = activity_log_privacy::privacy_level,
+  export_control_new = export_control::privacy_level;
+
+-- Drop old columns
+ALTER TABLE public.groups DROP COLUMN activity_log_privacy;
+ALTER TABLE public.groups DROP COLUMN export_control;
+
+-- Rename new columns
+ALTER TABLE public.groups RENAME COLUMN activity_log_privacy_new TO activity_log_privacy;
+ALTER TABLE public.groups RENAME COLUMN export_control_new TO export_control;
+
+-- Set defaults for the new columns
+ALTER TABLE public.groups ALTER COLUMN activity_log_privacy SET DEFAULT 'managers'::privacy_level;
+ALTER TABLE public.groups ALTER COLUMN export_control SET DEFAULT 'managers'::privacy_level;
 
 -- Drop and recreate functions to use new privacy settings
 CREATE OR REPLACE FUNCTION public.update_group_settings(
@@ -129,8 +145,8 @@ CREATE OR REPLACE FUNCTION public.create_group_with_manager(
   p_member_limit integer DEFAULT NULL,
   p_invite_code_visible boolean DEFAULT true,
   p_auto_approve_members boolean DEFAULT true,
-  p_activity_log_privacy privacy_level DEFAULT 'managers',
-  p_export_control privacy_level DEFAULT 'managers',
+  p_activity_log_privacy privacy_level DEFAULT 'managers'::privacy_level,
+  p_export_control privacy_level DEFAULT 'managers'::privacy_level,
   p_user_id uuid DEFAULT NULL,
   p_user_display_name text DEFAULT NULL
 )

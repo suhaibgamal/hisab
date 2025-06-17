@@ -1,45 +1,13 @@
--- Helper functions
-CREATE OR REPLACE FUNCTION public.get_current_user_app_id()
-RETURNS UUID
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT id 
-  FROM public.users 
-  WHERE supabase_auth_id = auth.uid()
-  LIMIT 1;
-$$;
+-- Drop existing functions first
+DROP FUNCTION IF EXISTS public.create_group_with_manager(text, text, text, uuid);
+DROP FUNCTION IF EXISTS public.create_group_with_manager(text, text, text, integer, boolean, boolean, text, text, text, uuid, text);
+DROP FUNCTION IF EXISTS public.update_group_settings(uuid, text, text, text, integer, boolean);
+DROP FUNCTION IF EXISTS public.update_group_settings(uuid, text, text, text, integer, boolean, boolean, text, text, text);
 
-CREATE OR REPLACE FUNCTION public.get_current_user_id()
-RETURNS UUID
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT auth.uid();
-$$;
-
-CREATE OR REPLACE FUNCTION public._get_uid_for_user_id(user_id_param UUID)
-RETURNS UUID
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  auth_id UUID;
-BEGIN
-  SELECT supabase_auth_id INTO auth_id FROM public.users WHERE id = user_id_param;
-  RETURN auth_id;
-END;
-$$;
-
--- Group Management Functions
+-- Recreate create_group_with_manager function
 CREATE OR REPLACE FUNCTION public.create_group_with_manager(
   p_group_name TEXT,
-  p_description TEXT,
+  p_description TEXT DEFAULT NULL,
   p_password_hash TEXT DEFAULT NULL,
   p_member_limit INTEGER DEFAULT NULL,
   p_invite_code_visible BOOLEAN DEFAULT true,
@@ -161,156 +129,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.check_group_exists(group_id UUID)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  RETURN EXISTS (
-    SELECT 1
-    FROM public.groups
-    WHERE id = group_id
-  );
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.is_group_manager(group_id_param UUID)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  RETURN EXISTS (
-    SELECT 1
-    FROM public.groups g
-    WHERE g.id = group_id_param
-    AND g.manager_id = public.get_current_user_app_id()
-  );
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.is_authenticated_group_member(group_id_param UUID)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  RETURN EXISTS (
-    SELECT 1
-    FROM public.group_members gm
-    WHERE gm.group_id = group_id_param
-    AND gm.user_id = public.get_current_user_app_id()
-  );
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.kick_group_member(
-  p_group_id UUID,
-  p_user_to_kick_id UUID
-)
-RETURNS VOID
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_kicker_id UUID;
-  v_kicker_role TEXT;
-  v_kickee_role TEXT;
-BEGIN
-  -- Get the current user's ID
-  SELECT public.get_current_user_app_id() INTO v_kicker_id;
-  
-  -- Get roles
-  SELECT role INTO v_kicker_role
-  FROM public.group_members
-  WHERE group_id = p_group_id AND user_id = v_kicker_id;
-  
-  SELECT role INTO v_kickee_role
-  FROM public.group_members
-  WHERE group_id = p_group_id AND user_id = p_user_to_kick_id;
-  
-  -- Check permissions
-  IF v_kicker_role IS NULL THEN
-    RAISE EXCEPTION 'You are not a member of this group';
-  END IF;
-  
-  IF v_kicker_role != 'manager' THEN
-    RAISE EXCEPTION 'Only managers can kick members';
-  END IF;
-  
-  IF v_kickee_role = 'manager' THEN
-    RAISE EXCEPTION 'Cannot kick a manager';
-  END IF;
-  
-  -- Delete the member
-  DELETE FROM public.group_members
-  WHERE group_id = p_group_id AND user_id = p_user_to_kick_id;
-END;
-$$;
-
--- Payment Functions
-CREATE OR REPLACE FUNCTION public.delete_payment(payment_id_to_delete UUID)
-RETURNS VOID
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  -- Security Check: Ensure the current user is the payer of the payment
-  IF NOT EXISTS (
-    SELECT 1
-    FROM public.payments
-    WHERE id = payment_id_to_delete
-    AND payer_id = public.get_current_user_app_id()
-  ) THEN
-    RAISE EXCEPTION 'User is not authorized to delete this payment or payment does not exist.';
-  END IF;
-
-  -- Delete the associated beneficiaries first
-  DELETE FROM public.payment_beneficiaries
-  WHERE payment_id = payment_id_to_delete;
-  
-  -- Delete the main payment record
-  DELETE FROM public.payments
-  WHERE id = payment_id_to_delete;
-END;
-$$;
-
--- Settlement Functions
-CREATE OR REPLACE FUNCTION public.cancel_settlement(settlement_id_to_cancel UUID)
-RETURNS VOID
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  -- Security Check: Ensure the current user is the initiator of the settlement
-  -- and that the settlement is still in 'pending' status
-  IF NOT EXISTS (
-    SELECT 1
-    FROM public.settlements
-    WHERE id = settlement_id_to_cancel
-    AND from_user_id = public.get_current_user_app_id()
-    AND status = 'pending'
-  ) THEN
-    RAISE EXCEPTION 'User is not authorized to cancel this settlement or settlement is not pending.';
-  END IF;
-  
-  -- Update the settlement status
-  UPDATE public.settlements
-  SET 
-    status = 'cancelled',
-    cancelled_at = now()
-  WHERE id = settlement_id_to_cancel;
-END;
-$$;
-
--- Group Settings Functions
+-- Recreate update_group_settings function
 CREATE OR REPLACE FUNCTION public.update_group_settings(
   p_group_id UUID,
   p_name TEXT,
@@ -418,4 +237,13 @@ BEGIN
     )
   );
 END;
-$$; 
+$$;
+
+-- Grant necessary permissions
+GRANT EXECUTE ON FUNCTION public.create_group_with_manager(
+  TEXT, TEXT, TEXT, INTEGER, BOOLEAN, BOOLEAN, TEXT, TEXT, TEXT, UUID, TEXT
+) TO authenticated;
+
+GRANT EXECUTE ON FUNCTION public.update_group_settings(
+  UUID, TEXT, TEXT, TEXT, INTEGER, BOOLEAN, BOOLEAN, TEXT, TEXT, TEXT
+) TO authenticated; 

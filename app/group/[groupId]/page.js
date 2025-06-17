@@ -2499,81 +2499,70 @@ export default function GroupPage() {
                   <div className="bg-gray-700/50 p-4 rounded-lg space-y-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-1">
-                        الحد الأقصى لعدد الأعضاء
+                        الحد الأقصى للأعضاء
                       </label>
                       <input
                         type="number"
-                        min={members.length}
-                        value={settings.member_limit ?? ""}
+                        value={settings.member_limit}
                         onChange={(e) =>
                           setSettings({
                             ...settings,
-                            member_limit: Math.max(
-                              parseInt(e.target.value) || settings.member_limit,
-                              members.length
-                            ),
+                            member_limit: parseInt(e.target.value),
                           })
                         }
                         className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        min={members.length}
+                        max={100}
                       />
-                      <p className="text-sm text-gray-400 mt-1">
-                        الحد الأدنى هو {members.length} (عدد الأعضاء الحاليين)
+                      <p className="mt-1 text-sm text-gray-400">
+                        بين {members.length} و 100 عضو
                       </p>
                     </div>
-                    <div className="flex items-center justify-between py-2">
-                      <label className="text-sm font-medium text-gray-300">
-                        إظهار رمز الدعوة للأعضاء
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSettings({
-                            ...settings,
-                            invite_code_visible: !settings.invite_code_visible,
-                          })
-                        }
-                        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                          settings.invite_code_visible
-                            ? "bg-indigo-600"
-                            : "bg-gray-600"
-                        }`}
-                      >
-                        <span
-                          className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${
-                            settings.invite_code_visible
-                              ? "translate-x-6"
-                              : "translate-x-1"
-                          }`}
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="invite_code_visible"
+                          checked={settings.invite_code_visible}
+                          onChange={(e) =>
+                            setSettings({
+                              ...settings,
+                              invite_code_visible: e.target.checked,
+                            })
+                          }
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                         />
-                      </button>
+                        <label
+                          htmlFor="invite_code_visible"
+                          className="mr-2 block text-sm text-gray-300"
+                        >
+                          إظهار رمز الدعوة
+                        </label>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between py-2">
-                      <label className="text-sm font-medium text-gray-300">
-                        قبول الأعضاء الجدد تلقائياً
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSettings({
-                            ...settings,
-                            auto_approve_members:
-                              !settings.auto_approve_members,
-                          })
-                        }
-                        className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                          settings.auto_approve_members
-                            ? "bg-indigo-600"
-                            : "bg-gray-600"
-                        }`}
-                      >
-                        <span
-                          className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${
-                            settings.auto_approve_members
-                              ? "translate-x-6"
-                              : "translate-x-1"
-                          }`}
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="auto_approve_members"
+                          checked={settings.auto_approve_members}
+                          onChange={(e) =>
+                            setSettings({
+                              ...settings,
+                              auto_approve_members: e.target.checked,
+                            })
+                          }
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                         />
-                      </button>
+                        <label
+                          htmlFor="auto_approve_members"
+                          className="mr-2 block text-sm text-gray-300"
+                        >
+                          قبول الأعضاء تلقائياً
+                        </label>
+                      </div>
                     </div>
                   </div>
                 </div>
