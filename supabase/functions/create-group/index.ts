@@ -7,40 +7,14 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
-// --- START: Self-Contained Base64 Code ---
-const ENCODE_MAP =
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-
-function encode(data: Uint8Array): string {
-  let output = "";
-  for (let i = 0; i < data.length; i += 3) {
-    const byte1 = data[i];
-    const byte2 = data[i + 1];
-    const byte3 = data[i + 2];
-    const enc1 = byte1 >> 2;
-    const enc2 = ((byte1 & 3) << 4) | (byte2 >> 4);
-    let enc3 = ((byte2 & 15) << 2) | (byte3 >> 6);
-    let enc4 = byte3 & 63;
-    if (isNaN(byte2)) {
-      enc3 = enc4 = 64;
-    } else if (isNaN(byte3)) {
-      enc4 = 64;
-    }
-    output +=
-      ENCODE_MAP.charAt(enc1) +
-      ENCODE_MAP.charAt(enc2) +
-      ENCODE_MAP.charAt(enc3) +
-      ENCODE_MAP.charAt(enc4);
-  }
-  return output;
-}
-// --- END: Self-Contained Base64 Code ---
+console.log("Create Group Function Started");
 
 // PBKDF2 parameters for password hashing.
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LENGTH = 16; // 128 bits
 
-async function hashPassword(password: string): Promise<string> {
+// Hash a password using PBKDF2
+const hashPassword = async (password: string): Promise<string> => {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
   const key = await crypto.subtle.deriveKey(
     {
@@ -62,85 +36,149 @@ async function hashPassword(password: string): Promise<string> {
   );
   const keyData = await crypto.subtle.exportKey("raw", key);
   return `${encode(salt)}:${encode(new Uint8Array(keyData))}`;
-}
+};
+
+// --- START: Self-Contained Base64 Code ---
+const ENCODE_MAP =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+
+// Base64 encoding/decoding functions
+const encode = (buffer: Uint8Array): string => {
+  let output = "";
+  for (let i = 0; i < buffer.length; i += 3) {
+    const byte1 = buffer[i];
+    const byte2 = buffer[i + 1];
+    const byte3 = buffer[i + 2];
+    const enc1 = byte1 >> 2;
+    const enc2 = ((byte1 & 3) << 4) | (byte2 >> 4);
+    let enc3 = ((byte2 & 15) << 2) | (byte3 >> 6);
+    let enc4 = byte3 & 63;
+    if (isNaN(byte2)) {
+      enc3 = enc4 = 64;
+    } else if (isNaN(byte3)) {
+      enc4 = 64;
+    }
+    output +=
+      ENCODE_MAP.charAt(enc1) +
+      ENCODE_MAP.charAt(enc2) +
+      ENCODE_MAP.charAt(enc3) +
+      ENCODE_MAP.charAt(enc4);
+  }
+  return output.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+};
+// --- END: Self-Contained Base64 Code ---
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
   try {
-    const { group_name, password, user_id, user_display_name } =
-      await req.json();
-    if (!group_name || !user_id) {
-      throw new Error("Group name and user ID are required.");
+    // Handle CORS
+    if (req.method === "OPTIONS") {
+      return new Response("ok", { headers: corsHeaders });
     }
 
-    let password_hash = null;
-    if (password) {
-      password_hash = await hashPassword(password);
+    // Get the request body
+    const body = await req.json();
+
+    // Validate required fields
+    const requiredFields = ["name"];
+    for (const field of requiredFields) {
+      if (!body[field]) {
+        return new Response(
+          JSON.stringify({
+            error: `Missing required field: ${field}`,
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
     }
 
-    const supabaseAdmin = createClient(
+    // Get auth token from request
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({
+          error: "No authorization header",
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Create Supabase client
+    const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
       {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false,
+        global: {
+          headers: { Authorization: authHeader },
         },
       }
     );
 
-    // First, get the user's display name from the database
-    const { data: userData, error: userError } = await supabaseAdmin
-      .from("users")
-      .select("display_name, username")
-      .eq("id", user_id)
-      .single();
+    // Get user data
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser();
 
-    if (userError) {
-      console.error("Error fetching user data:", userError);
-      throw userError;
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({
+          error: "Error getting user data",
+          details: userError,
+        }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
-    const displayName =
-      user_display_name ||
-      userData.display_name ||
-      userData.username ||
-      "مستخدم";
-
-    const { error: rpcError } = await supabaseAdmin.rpc(
+    // Call the database function to create the group
+    const { data, error } = await supabaseClient.rpc(
       "create_group_with_manager",
       {
-        p_group_name: group_name,
-        p_password_hash: password_hash,
-        p_user_id: user_id,
-        p_user_display_name: displayName,
+        p_activity_log_privacy: body.activity_log_privacy || "managers",
+        p_auto_approve_members: body.auto_approve_members ?? true,
+        p_description: body.description || null,
+        p_export_control: body.export_control || "managers",
+        p_group_name: body.name,
+        p_invite_code_visible: body.invite_code_visible ?? true,
+        p_member_limit: body.member_limit || 10,
+        p_password: body.password || null,
+        p_user_id: user.id,
       }
     );
 
-    if (rpcError) {
-      console.error("RPC Error:", rpcError);
-      throw rpcError;
+    if (error) {
+      return new Response(
+        JSON.stringify({
+          error: "Error creating group",
+          details: error,
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ group_id: data }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
     });
   } catch (error) {
-    console.error("Error in create-group function:", error);
     return new Response(
       JSON.stringify({
-        error: error.message,
-        details: error.details,
-        code: error.code,
+        error: "Internal Server Error",
+        details: error.message,
       }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
   }
