@@ -8,11 +8,7 @@ serve(async (req) => {
   }
 
   try {
-    const { group_identifier, password } = await req.json();
-
-    if (!group_identifier) {
-      throw new Error("Group identifier (ID or invite code) is required.");
-    }
+    const { group_id, description, splits } = await req.json();
 
     const userClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -36,11 +32,12 @@ serve(async (req) => {
     }
 
     const { data, error: rpcError } = await userClient.rpc(
-      "join_group_securely",
+      "add_payment_securely",
       {
-        p_user_id: user.id,
-        p_group_identifier: group_identifier,
-        p_password: password,
+        p_group_id: group_id,
+        p_created_by: user.id,
+        p_description: description,
+        p_splits: splits,
       }
     );
 

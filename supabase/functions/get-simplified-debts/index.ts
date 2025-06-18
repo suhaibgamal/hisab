@@ -8,10 +8,10 @@ serve(async (req) => {
   }
 
   try {
-    const { group_identifier, password } = await req.json();
+    const { group_id } = await req.json();
 
-    if (!group_identifier) {
-      throw new Error("Group identifier (ID or invite code) is required.");
+    if (!group_id) {
+      throw new Error("Group ID is required.");
     }
 
     const userClient = createClient(
@@ -36,11 +36,9 @@ serve(async (req) => {
     }
 
     const { data, error: rpcError } = await userClient.rpc(
-      "join_group_securely",
+      "get_simplified_debts_for_group",
       {
-        p_user_id: user.id,
-        p_group_identifier: group_identifier,
-        p_password: password,
+        p_group_id: group_id,
       }
     );
 

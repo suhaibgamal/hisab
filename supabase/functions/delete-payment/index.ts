@@ -8,11 +8,7 @@ serve(async (req) => {
   }
 
   try {
-    const { group_identifier, password } = await req.json();
-
-    if (!group_identifier) {
-      throw new Error("Group identifier (ID or invite code) is required.");
-    }
+    const { group_id, payment_id } = await req.json();
 
     const userClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -35,18 +31,27 @@ serve(async (req) => {
       });
     }
 
-    const { data, error: rpcError } = await userClient.rpc(
-      "join_group_securely",
-      {
-        p_user_id: user.id,
-        p_group_identifier: group_identifier,
-        p_password: password,
-      }
-    );
+    const { data: payment, error: paymentFetchError } = await userClient
+      .from("transactions")
+      .select("id, group_id, description, splits")
+      .eq("id", payment_id)
+      .single();
+    if (paymentFetchError || !payment) {
+      return new Response(JSON.stringify({ error: "Payment not found" }), {
+        status: 404,
+        headers: corsHeaders,
+      });
+    }
+
+    const { error: rpcError } = await userClient.rpc("void_payment_securely", {
+      p_group_id: group_id,
+      p_payment_id: payment_id,
+      p_user_id: user.id,
+    });
 
     if (rpcError) throw rpcError;
 
-    return new Response(JSON.stringify(data), {
+    return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
