@@ -8,8 +8,24 @@ serve(async (req) => {
   }
 
   try {
-    const { group_id, description, splits } = await req.json();
+    const { group_id, description, splits, payment_date } = await req.json();
 
+    // Input validation
+    if (
+      !group_id ||
+      !description ||
+      !splits ||
+      !Array.isArray(splits) ||
+      splits.length === 0
+    ) {
+      return new Response(JSON.stringify({ error: "Invalid input" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Create a client with the user's access token to call the DB function.
+    // The RLS and function security are handled within the database.
     const userClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
@@ -20,33 +36,24 @@ serve(async (req) => {
       }
     );
 
-    const {
-      data: { user },
-      error: userError,
-    } = await userClient.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "User not authenticated" }), {
-        status: 401,
-        headers: corsHeaders,
-      });
-    }
+    // No need to get user here, as the DB function `get_current_user_app_id` will do it.
 
-    const { data, error: rpcError } = await userClient.rpc(
-      "add_payment_securely",
+    const { data, error } = await userClient.rpc("create_payment", {
+      p_group_id: group_id,
+      p_description: description,
+      p_splits: splits,
+      p_payment_date: payment_date,
+    });
+
+    if (error) throw error;
+
+    return new Response(
+      JSON.stringify({ success: true, transaction_id: data }),
       {
-        p_group_id: group_id,
-        p_created_by: user.id,
-        p_description: description,
-        p_splits: splits,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
       }
     );
-
-    if (rpcError) throw rpcError;
-
-    return new Response(JSON.stringify(data), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

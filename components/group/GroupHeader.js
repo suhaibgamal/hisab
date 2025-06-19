@@ -55,47 +55,42 @@ export default function GroupHeader({
   return (
     <header className="w-full mb-8">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 sm:gap-8">
-        {/* Left: Invite code and settings */}
-        <div className="flex flex-row items-center gap-4 order-2 sm:order-1">
+        {/* Right: Invite code and settings */}
+        <div className="flex flex-row items-center gap-4 order-1 sm:order-2">
           {group?.invite_code_visible && (
-            <div className="flex items-center gap-2 bg-gray-700 px-3 py-1 rounded-md text-sm text-indigo-300">
+            <div className="flex items-center gap-1 bg-gray-800 px-2 py-0.5 rounded text-xs text-indigo-200">
               <span>رمز الدعوة:</span>
-              <span className="font-mono font-bold">{group.invite_code}</span>
+              <span className="font-mono font-bold text-base">
+                {group.invite_code}
+              </span>
+              <button
+                onClick={handleCopyInviteCode}
+                className="p-1 rounded hover:bg-indigo-900 focus:outline-none"
+                title="نسخ رمز الدعوة"
+              >
+                <FiCopy className="w-3 h-3" />
+              </button>
+              <button
+                onClick={handleShareGroup}
+                className="p-1 rounded hover:bg-indigo-900 focus:outline-none"
+                title="مشاركة المجموعة"
+              >
+                <FiShare2 className="w-3 h-3" />
+              </button>
+              {onSettingsClick && (
+                <button
+                  onClick={onSettingsClick}
+                  className="p-1 rounded-full bg-indigo-800 hover:bg-indigo-900 text-white shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  title="إعدادات المجموعة"
+                >
+                  <FiSettings className="w-4 h-4" />
+                </button>
+              )}
             </div>
           )}
-          {onSettingsClick && (
-            <button
-              onClick={onSettingsClick}
-              className="ml-2 p-2 rounded-full bg-indigo-700 hover:bg-indigo-800 text-white shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              title="إعدادات المجموعة"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 6v6l4 2"
-                />
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  fill="none"
-                />
-              </svg>
-            </button>
-          )}
         </div>
-        {/* Right: Group metadata */}
-        <div className="flex flex-col items-start sm:items-end order-1 sm:order-2 flex-1">
+        {/* Left: Group metadata */}
+        <div className="flex flex-col items-start sm:items-start order-2 sm:order-1 flex-1">
           <div className="flex items-center gap-2 mb-1">
             <h1 className="text-3xl font-bold">{group?.name}</h1>
             {connectionStatus && (

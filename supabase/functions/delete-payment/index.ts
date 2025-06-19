@@ -10,6 +10,13 @@ serve(async (req) => {
   try {
     const { group_id, payment_id } = await req.json();
 
+    if (!group_id || !payment_id) {
+      return new Response(JSON.stringify({ error: "Invalid input" }), {
+        status: 400,
+        headers: corsHeaders,
+      });
+    }
+
     const userClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
@@ -20,33 +27,12 @@ serve(async (req) => {
       }
     );
 
-    const {
-      data: { user },
-      error: userError,
-    } = await userClient.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "User not authenticated" }), {
-        status: 401,
-        headers: corsHeaders,
-      });
-    }
-
-    const { data: payment, error: paymentFetchError } = await userClient
-      .from("transactions")
-      .select("id, group_id, description, splits")
-      .eq("id", payment_id)
-      .single();
-    if (paymentFetchError || !payment) {
-      return new Response(JSON.stringify({ error: "Payment not found" }), {
-        status: 404,
-        headers: corsHeaders,
-      });
-    }
-
+    // The RPC function `void_payment_securely` now handles all authorization
+    // by using `get_current_user_app_id()` internally. We no longer need to
+    // fetch the user or pass the user ID from the client-side.
     const { error: rpcError } = await userClient.rpc("void_payment_securely", {
       p_group_id: group_id,
       p_payment_id: payment_id,
-      p_user_id: user.id,
     });
 
     if (rpcError) throw rpcError;

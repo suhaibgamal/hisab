@@ -8,7 +8,15 @@ serve(async (req) => {
   }
 
   try {
-    const { group_id, from_user_id, to_user_id, amount } = await req.json();
+    const { group_id, to_user_id, amount, description } = await req.json();
+
+    // Input validation
+    if (!group_id || !to_user_id || !amount) {
+      return new Response(JSON.stringify({ error: "Invalid input" }), {
+        status: 400,
+        headers: corsHeaders,
+      });
+    }
 
     const userClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -20,34 +28,23 @@ serve(async (req) => {
       }
     );
 
-    const {
-      data: { user },
-      error: userError,
-    } = await userClient.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "User not authenticated" }), {
-        status: 401,
-        headers: corsHeaders,
-      });
-    }
+    // The `from_user_id` is now inferred inside the RPC from the authenticated user.
+    const { data, error } = await userClient.rpc("add_settlement", {
+      p_group_id: group_id,
+      p_to_user_id: to_user_id,
+      p_amount: amount,
+      p_description: description,
+    });
 
-    const { data, error: rpcError } = await userClient.rpc(
-      "add_settlement_securely",
+    if (error) throw error;
+
+    return new Response(
+      JSON.stringify({ success: true, transaction_id: data }),
       {
-        p_group_id: group_id,
-        p_created_by: user.id,
-        p_from_user_id: from_user_id,
-        p_to_user_id: to_user_id,
-        p_amount: amount,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
       }
     );
-
-    if (rpcError) throw rpcError;
-
-    return new Response(JSON.stringify(data), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

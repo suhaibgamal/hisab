@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { useParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 import { toast } from "sonner";
+
+// Import Hooks
+import { useGroupData } from "./hooks/useGroupData";
+import { useRealtime } from "./hooks/useRealtime";
 
 // Import Components
 import LoadingSpinner from "../../../components/LoadingSpinner";
@@ -21,22 +25,44 @@ import ConfirmationModal from "../../../components/group/ConfirmationModal";
 
 export default function GroupPage() {
   const { groupId } = useParams();
-  const router = useRouter();
 
-  // --- STATE MANAGEMENT ---
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [fatalError, setFatalError] = useState(null);
-  const [user, setUser] = useState(null);
-  const [group, setGroup] = useState(null);
-  const [members, setMembers] = useState([]);
-  const [payments, setPayments] = useState([]);
-  const [settlements, setSettlements] = useState([]);
-  const [activityLogs, setActivityLogs] = useState([]);
-  const [balances, setBalances] = useState([]);
-  const [debts, setDebts] = useState([]);
-  const [currentUserDbId, setCurrentUserDbId] = useState(null);
-  const [currentUserRole, setCurrentUserRole] = useState(null);
+  // --- DATA & STATE MANAGEMENT (now in hooks) ---
+  const {
+    loading: isDataLoading,
+    error,
+    fatalError,
+    user,
+    group,
+    members,
+    payments,
+    settlements,
+    activityLogs,
+    balances,
+    debts,
+    currentUserDbId,
+    currentUserRole,
+    setGroup,
+    fetchGroupData,
+  } = useGroupData(groupId);
+
+  const handleRealtimeEvent = useCallback(
+    (payload) => {
+      console.log("Realtime event received:", payload);
+      // If the group settings change, update the group state directly.
+      if (payload.table === "groups" && payload.eventType === "UPDATE") {
+        toast.info("تم تحديث إعدادات المجموعة بواسطة مدير.");
+        setGroup(payload.new);
+      } else {
+        // For any other event (new payments, deleted payments, new members, etc.),
+        // the safest and most reliable action is to refetch all data.
+        toast.info("يتم تحديث البيانات...");
+        fetchGroupData();
+      }
+    },
+    [fetchGroupData, setGroup]
+  );
+
+  const connectionStatus = useRealtime(groupId, handleRealtimeEvent);
 
   // --- MODAL & LOADING STATES ---
   const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
@@ -46,7 +72,7 @@ export default function GroupPage() {
     description: "",
     onConfirm: null,
   });
-  const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [settlementLoading, setSettlementLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(false);
@@ -64,17 +90,12 @@ export default function GroupPage() {
     updated_at: null,
   });
 
-  // --- REALTIME CONNECTION STATUS ---
-  const [connectionStatus, setConnectionStatus] = useState("connecting"); // 'connected', 'connecting', 'disconnected'
-  const channelRef = useRef(null);
-  const reconnectRef = useRef(null);
-
   useEffect(() => {
     if (group) {
       setSettings({
         name: group.name || "",
         description: group.description || "",
-        password: "",
+        password: "", // Always clear password field on open
         member_limit: group.member_limit || null,
         invite_code_visible: group.invite_code_visible ?? true,
         activity_log_privacy: group.activity_log_privacy || "managers",
@@ -86,235 +107,6 @@ export default function GroupPage() {
       });
     }
   }, [group]);
-
-  // --- DATA FETCHING ---
-  const fetchGroupData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-      if (sessionError || !session) {
-        setError("Please log in to view this group");
-        router.replace("/");
-        return;
-      }
-      setUser(session.user);
-
-      const { data: groupData, error: groupError } = await supabase
-        .from("groups")
-        .select("*")
-        .eq("id", groupId)
-        .single();
-      if (groupError || !groupData) {
-        setFatalError("المجموعة غير موجودة أو الرابط غير صالح.");
-        return;
-      }
-      setGroup(groupData);
-
-      const [
-        membersResult,
-        transactionsResult,
-        activityLogsResult,
-        balancesResult,
-        debtsResult,
-      ] = await Promise.all([
-        supabase
-          .from("group_members")
-          .select(
-            "id, role, joined_at, users(id, username, display_name, supabase_auth_id)"
-          )
-          .eq("group_id", groupId),
-        supabase
-          .from("transactions")
-          .select(
-            "*, splits:transaction_splits(id, user_id, amount, user:users(id, username, display_name))"
-          )
-          .eq("group_id", groupId)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("activity_logs")
-          .select("*, user:users(id, username, display_name)")
-          .eq("group_id", groupId)
-          .order("created_at", { ascending: false })
-          .limit(50),
-        supabase.functions.invoke("get-group-balances", {
-          body: { group_id: groupId },
-        }),
-        supabase.functions.invoke("get-simplified-debts", {
-          body: { group_id: groupId },
-        }),
-      ]);
-
-      const { data: membersData, error: membersError } = membersResult;
-      if (membersError) throw new Error("Error loading group members");
-      setMembers(membersData);
-
-      const currentMember = membersData.find(
-        (m) => m.users?.supabase_auth_id === session.user.id
-      );
-      if (currentMember) {
-        setCurrentUserRole(currentMember.role);
-        setCurrentUserDbId(currentMember.users?.id);
-      } else {
-        router.replace(`/join/${groupId}`);
-        return;
-      }
-
-      const { data: balancesData, error: balancesError } = balancesResult;
-      if (balancesError) setBalances([]);
-      else {
-        const parsedData =
-          typeof balancesData === "string"
-            ? JSON.parse(balancesData)
-            : balancesData;
-        const balancesArray =
-          parsedData && Array.isArray(parsedData.balances)
-            ? parsedData.balances
-            : Array.isArray(parsedData)
-            ? parsedData
-            : [];
-        setBalances(
-          balancesArray
-            .map((balance) => {
-              const member = membersData.find(
-                (m) => m.users?.id === balance.user_id
-              );
-              if (!member?.users) return null;
-              return {
-                ...balance,
-                ...member.users,
-                joined_at: member.joined_at,
-              };
-            })
-            .filter(Boolean)
-        );
-      }
-
-      const { data: transactionsData, error: transactionsError } =
-        transactionsResult;
-      if (transactionsError) throw new Error("Error loading transactions");
-      const allTransactions = transactionsData || [];
-      setPayments(
-        allTransactions
-          .filter((t) => t.type === "payment")
-          .map((payment) => {
-            const payerSplit = payment.splits.find((s) => s.amount > 0);
-            return {
-              ...payment,
-              amount: payerSplit ? payerSplit.amount : 0,
-              payer: payerSplit ? payerSplit.user : null,
-            };
-          })
-      );
-      setSettlements(allTransactions.filter((t) => t.type === "settlement"));
-
-      const { data: activityLogsData, error: activityLogsError } =
-        activityLogsResult;
-      if (activityLogsError) throw new Error("Error loading activity logs");
-      setActivityLogs(activityLogsData || []);
-
-      const { data: debtsData, error: debtsError } = debtsResult;
-      if (debtsError) setDebts([]);
-      else if (debtsData && debtsData.debts) setDebts(debtsData.debts);
-      else setDebts([]);
-    } catch (err) {
-      setError(err.message || "An unexpected error occurred");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [groupId, router]);
-
-  useEffect(() => {
-    fetchGroupData();
-  }, [fetchGroupData]);
-
-  // --- REALTIME SUBSCRIPTIONS ---
-  useEffect(() => {
-    if (!groupId) return;
-    setConnectionStatus("connecting");
-    let reconnectTimeout = null;
-    let lastStatus = "connecting";
-    const onAllChanges = () => fetchGroupData();
-    const subscribe = () => {
-      const channel = supabase
-        .channel(`group_${groupId}`)
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "transactions" },
-          onAllChanges
-        )
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "group_members" },
-          onAllChanges
-        )
-        .on(
-          "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "groups" },
-          (payload) => {
-            toast.info("تم تحديث إعدادات المجموعة بواسطة مدير.");
-            setGroup(payload.new);
-          }
-        )
-        .on("presence", {}, () => setConnectionStatus("connected"))
-        .on("broadcast", {}, () => setConnectionStatus("connected"))
-        .subscribe((status) => {
-          if (status === "SUBSCRIBED") setConnectionStatus("connected");
-        });
-      channelRef.current = channel;
-      // Fallback: ping every 10s to check connection
-      const interval = setInterval(() => {
-        if (channel.state === "joined") setConnectionStatus("connected");
-        else if (channel.state === "joining") setConnectionStatus("connecting");
-        else setConnectionStatus("disconnected");
-      }, 10000);
-      // Reconnect logic
-      const handleDisconnect = () => {
-        setConnectionStatus("disconnected");
-        if (reconnectTimeout) clearTimeout(reconnectTimeout);
-        reconnectTimeout = setTimeout(() => {
-          subscribe();
-        }, 3000);
-      };
-      channel.on("close", handleDisconnect);
-      return () => {
-        supabase.removeChannel(channel);
-        clearInterval(interval);
-        if (reconnectTimeout) clearTimeout(reconnectTimeout);
-      };
-    };
-    const unsub = subscribe();
-    // Listen for online/offline events
-    const handleOnline = () => {
-      setConnectionStatus("connecting");
-      toast.success("تم استعادة الاتصال. جارٍ إعادة الاتصال...");
-      subscribe();
-    };
-    const handleOffline = () => {
-      setConnectionStatus("disconnected");
-      toast.error("تم فقد الاتصال بالإنترنت.");
-    };
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-    return () => {
-      if (unsub) unsub();
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, [groupId, fetchGroupData]);
-
-  useEffect(() => {
-    if (connectionStatus !== lastStatus) {
-      if (connectionStatus === "connected")
-        toast.success("تم الاتصال بالخادم.");
-      if (connectionStatus === "disconnected")
-        toast.error("تم فقد الاتصال بالخادم.");
-      if (connectionStatus === "connecting") toast("جاري الاتصال بالخادم...");
-      lastStatus = connectionStatus;
-    }
-  }, [connectionStatus]);
 
   // --- DERIVED STATE & MEMOS ---
   const paymentStats = useMemo(() => {
@@ -363,17 +155,15 @@ export default function GroupPage() {
     };
   }, [payments, settlements, currentUserDbId, group?.created_at]);
 
-  const canExportData = useMemo(() => {
-    if (!group || !currentUserRole) return false;
-    return group.export_control === "all" || currentUserRole === "manager";
-  }, [group, currentUserRole]);
-
-  const canViewActivityLogs = useMemo(() => {
-    if (!group || !currentUserRole) return false;
-    return (
-      group.activity_log_privacy === "all" || currentUserRole === "manager"
-    );
-  }, [group, currentUserRole]);
+  const canExportData = useMemo(
+    () => currentUserRole === "manager" || group?.export_control === "all",
+    [group, currentUserRole]
+  );
+  const canViewActivityLogs = useMemo(
+    () =>
+      currentUserRole === "manager" || group?.activity_log_privacy === "all",
+    [group, currentUserRole]
+  );
 
   // --- HANDLER FUNCTIONS ---
   const getDisplayName = useCallback(
@@ -393,8 +183,7 @@ export default function GroupPage() {
   }) => {
     const parsedAmount = parseFloat(amount);
     if (!description.trim() || isNaN(parsedAmount) || parsedAmount <= 0) {
-      toast.error("Please fill all fields with valid values.");
-      return;
+      return toast.error("Please fill all fields with valid values.");
     }
     setPaymentLoading(true);
     try {
@@ -408,13 +197,9 @@ export default function GroupPage() {
           amount: -share,
         })),
       ];
+      // Use the new secure RPC
       const { error } = await supabase.functions.invoke("add-payment", {
-        body: {
-          group_id: groupId,
-          created_by: currentUserDbId,
-          description: description.trim(),
-          splits,
-        },
+        body: { group_id: groupId, description: description.trim(), splits },
       });
       if (error) throw error;
       toast.success("تمت إضافة الدفعة!");
@@ -430,8 +215,9 @@ export default function GroupPage() {
       title: "حذف الدفعة",
       description: "هل أنت متأكد؟ لا يمكن التراجع عن هذا.",
       onConfirm: async () => {
-        setLoading(true);
+        setActionLoading(true);
         try {
+          // Use the new secure RPC
           const { error } = await supabase.functions.invoke("delete-payment", {
             body: { group_id: groupId, payment_id: paymentId },
           });
@@ -441,7 +227,7 @@ export default function GroupPage() {
         } catch (err) {
           toast.error("فشل الحذف: " + err.message);
         } finally {
-          setLoading(false);
+          setActionLoading(false);
         }
       },
     });
@@ -451,13 +237,17 @@ export default function GroupPage() {
   const handleInitiateSettlement = async (toUserId, amount) => {
     setSettlementLoading(true);
     try {
+      const toUser = members.find((m) => m.users.id === toUserId)?.users;
+      const description = `Settlement to ${
+        toUser?.display_name || toUser?.username || "user"
+      }`;
+      // Use the new secure RPC
       const { error } = await supabase.functions.invoke("add-settlement", {
         body: {
           group_id: groupId,
-          created_by: currentUserDbId,
-          from_user_id: currentUserDbId,
           to_user_id: toUserId,
           amount,
+          description,
         },
       });
       if (error) throw error;
@@ -473,10 +263,7 @@ export default function GroupPage() {
     const { name, value, type, checked } = e.target;
     setSettings((prev) => {
       let next = { ...prev, [name]: type === "checkbox" ? checked : value };
-      if (name === "privacy_level") {
-        if (value === "public") next.password = "";
-        if (value === "private" && !prev.password) next.password = "";
-      }
+      if (name === "privacy_level" && value === "public") next.password = "";
       return next;
     });
   };
@@ -485,25 +272,20 @@ export default function GroupPage() {
     e.preventDefault();
     setSettingsLoading(true);
     try {
-      let payload = { group_id: groupId, ...settings };
-      // Enforce privacy logic
+      const payload = { ...settings, group_id: groupId };
       if (payload.privacy_level === "public") payload.password = "";
-      if (payload.privacy_level === "private" && !payload.password)
+      if (payload.privacy_level === "private" && !payload.password) {
         throw new Error("يجب تعيين كلمة مرور للمجموعة الخاصة");
-      if (!payload.password) delete payload.password;
-      // Only allow 'all' or 'managers' for privacy fields
-      if (!["all", "managers"].includes(payload.activity_log_privacy))
-        payload.activity_log_privacy = "managers";
-      if (!["all", "managers"].includes(payload.export_control))
-        payload.export_control = "managers";
+      }
+
       const { error } = await supabase.functions.invoke(
         "update-group-settings",
         { body: payload }
       );
       if (error) throw error;
+
       toast.success("تم تحديث الإعدادات!");
       setSettingsModalOpen(false);
-      await fetchGroupData(); // Always refresh after update
     } catch (err) {
       toast.error("فشل التحديث: " + err.message);
     } finally {
@@ -524,34 +306,15 @@ export default function GroupPage() {
           payload.amount || 0
         ).toFixed(2)} لـ "${payload.description}"`;
       case "group_created":
-        return `${userName} أنشأ المجموعة '${
-          payload.group_name || payload.groupName || ""
-        }'`;
+        return `${userName} أنشأ المجموعة '${payload.group_name || ""}'`;
       case "settlement_initiated":
-        return `${userName} سجل دفعة لـ ${
-          payload.to_user_name || payload.toUserName || "مستخدم"
-        }`;
-      case "settlement_confirmed":
-        return `${userName} أكد تسوية مع ${
-          payload.to_user_name || payload.toUserName || "مستخدم"
-        }`;
-      case "settlement_cancelled":
-        return `${userName} ألغى تسوية مع ${
-          payload.to_user_name || payload.toUserName || "مستخدم"
-        }`;
+        return `${userName} سجل دفعة لـ ${payload.to_user_name || "مستخدم"}`;
       case "member_joined":
         return `${userName} انضم للمجموعة`;
       case "member_left":
         return `${userName} غادر المجموعة`;
-      case "update_settings":
       case "group_settings_updated":
         return `${userName} قام بتحديث إعدادات المجموعة`;
-      case "role_promoted":
-        return `${userName} رُقي إلى مدير`;
-      case "role_demoted":
-        return `${userName} تم تنزيله إلى عضو`;
-      case "member_kicked":
-        return `${userName} تم طرده من المجموعة`;
       default:
         return log.description || "نشاط غير معروف";
     }
@@ -576,12 +339,11 @@ export default function GroupPage() {
     }));
     const csv = toCSV(rows, headers);
     const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
+    a.href = URL.createObjectURL(blob);
     a.download = `group_balances_${groupId}.csv`;
     a.click();
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(a.href);
   };
   const handleExportActivity = () => {
     if (!activityLogs.length) return toast.error("لا يوجد سجل نشاط للتصدير");
@@ -596,16 +358,15 @@ export default function GroupPage() {
     }));
     const csv = toCSV(rows, headers);
     const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
+    a.href = URL.createObjectURL(blob);
     a.download = `group_activity_${groupId}.csv`;
     a.click();
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(a.href);
   };
 
   // --- RENDER LOGIC ---
-  if (isLoading) return <LoadingSpinner />;
+  if (isDataLoading) return <LoadingSpinner />;
   if (fatalError) return <GroupNotFound message={fatalError} />;
   if (error) return <ErrorMessage message={error} />;
 
@@ -657,7 +418,7 @@ export default function GroupPage() {
                 currentUserDbId={currentUserDbId}
                 currentUserRole={currentUserRole}
                 onDeletePayment={handleDeletePayment}
-                loading={loading}
+                loading={actionLoading}
                 getDisplayName={getDisplayName}
               />
               <ActivityLog
@@ -688,7 +449,7 @@ export default function GroupPage() {
         onConfirm={modalContent.onConfirm}
         title={modalContent.title}
         description={modalContent.description}
-        loading={loading}
+        loading={actionLoading}
       />
     </ErrorBoundary>
   );
