@@ -56,7 +56,7 @@ export default function GroupPage() {
         // For any other event (new payments, deleted payments, new members, etc.),
         // the safest and most reliable action is to refetch all data.
         toast.info("يتم تحديث البيانات...");
-        fetchGroupData();
+        fetchGroupData(false);
       }
     },
     [fetchGroupData, setGroup]
@@ -203,6 +203,7 @@ export default function GroupPage() {
       });
       if (error) throw error;
       toast.success("تمت إضافة الدفعة!");
+      fetchGroupData(false);
     } catch (err) {
       toast.error("فشل الإضافة: " + err.message);
     } finally {
@@ -224,6 +225,7 @@ export default function GroupPage() {
           if (error) throw error;
           toast.success("تم حذف الدفعة بنجاح.");
           setConfirmationModalOpen(false);
+          fetchGroupData(false);
         } catch (err) {
           toast.error("فشل الحذف: " + err.message);
         } finally {
@@ -235,6 +237,7 @@ export default function GroupPage() {
   };
 
   const handleInitiateSettlement = async (toUserId, amount) => {
+    if (settlementLoading) return;
     setSettlementLoading(true);
     try {
       const toUser = members.find((m) => m.users.id === toUserId)?.users;
@@ -251,11 +254,44 @@ export default function GroupPage() {
         },
       });
       if (error) throw error;
-      toast.success("تم تسجيل التسوية بنجاح!");
+      toast.success("تم إرسال عرض التسوية!");
+      fetchGroupData(false);
     } catch (err) {
-      toast.error("فشل التسجيل: " + err.message);
+      toast.error("فشل إرسال العرض: " + err.message);
     } finally {
       setSettlementLoading(false);
+    }
+  };
+
+  const handleConfirmSettlement = async (transactionId) => {
+    setActionLoading(true);
+    try {
+      const { error } = await supabase.rpc("confirm_settlement", {
+        p_transaction_id: transactionId,
+      });
+      if (error) throw error;
+      toast.success("تم تأكيد التسوية!");
+      fetchGroupData(false);
+    } catch (err) {
+      toast.error("فشل تأكيد التسوية: " + err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRejectSettlement = async (transactionId) => {
+    setActionLoading(true);
+    try {
+      const { error } = await supabase.rpc("reject_settlement", {
+        p_transaction_id: transactionId,
+      });
+      if (error) throw error;
+      toast.success("تم رفض التسوية.");
+      fetchGroupData(false);
+    } catch (err) {
+      toast.error("فشل رفض التسوية: " + err.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -307,8 +343,19 @@ export default function GroupPage() {
         ).toFixed(2)} لـ "${payload.description}"`;
       case "group_created":
         return `${userName} أنشأ المجموعة '${payload.group_name || ""}'`;
-      case "settlement_initiated":
-        return `${userName} سجل دفعة لـ ${payload.to_user_name || "مستخدم"}`;
+      case "settlement_propose":
+      case "settlement_proposed":
+        return `${userName} بدأ تسوية مع ${
+          payload.to_user_name || "مستخدم"
+        } بقيمة $${parseFloat(payload.amount || 0).toFixed(2)}`;
+      case "settlement_confirmed":
+        return `${userName} أكد التسوية من ${
+          payload.from_user_name || "مستخدم"
+        } بقيمة $${parseFloat(payload.amount || 0).toFixed(2)}`;
+      case "settlement_rejected":
+        return `${userName} رفض التسوية من ${
+          payload.from_user_name || "مستخدم"
+        } بقيمة $${parseFloat(payload.amount || 0).toFixed(2)}`;
       case "member_joined":
         return `${userName} انضم للمجموعة`;
       case "member_left":
@@ -316,7 +363,10 @@ export default function GroupPage() {
       case "group_settings_updated":
         return `${userName} قام بتحديث إعدادات المجموعة`;
       default:
-        return log.description || "نشاط غير معروف";
+        return (
+          log.description ||
+          `${userName} قام بنشاط غير معروف: ${log.action_type}`
+        );
     }
   }, []);
 
@@ -398,10 +448,15 @@ export default function GroupPage() {
               />
               <DebtSummary
                 debts={debts}
+                settlements={settlements}
                 members={members}
                 user={user}
+                currentUserDbId={currentUserDbId}
                 settlementLoading={settlementLoading}
+                actionLoading={actionLoading}
                 onInitiateSettlement={handleInitiateSettlement}
+                onConfirmSettlement={handleConfirmSettlement}
+                onRejectSettlement={handleRejectSettlement}
                 getDisplayName={getDisplayName}
               />
               <AddPaymentForm

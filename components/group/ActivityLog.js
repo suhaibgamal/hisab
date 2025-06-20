@@ -21,9 +21,12 @@ export default function ActivityLog({
       case "payment_deleted":
         return "bg-red-900/50 text-red-400";
       case "settlement_initiated":
+      case "settlement_propose":
+      case "settlement_proposed":
         return "bg-yellow-900/50 text-yellow-400";
       case "settlement_confirmed":
         return "bg-blue-900/50 text-blue-400";
+      case "settlement_rejected":
       case "settlement_cancelled":
         return "bg-red-900/50 text-red-400";
       case "group_created":
@@ -35,6 +38,12 @@ export default function ActivityLog({
       case "group_settings_updated":
       case "update_settings":
         return "bg-blue-900/50 text-blue-400";
+      case "role_promoted":
+        return "bg-green-900/50 text-green-400";
+      case "role_demoted":
+        return "bg-red-900/50 text-red-400";
+      case "member_kicked":
+        return "bg-red-900/50 text-red-400";
       default:
         return "bg-gray-700 text-gray-400";
     }
@@ -54,11 +63,14 @@ export default function ActivityLog({
       case "group_created":
         return "إنشاء مجموعة";
       case "settlement_initiated":
-        return "تسوية معلقة";
+      case "settlement_propose":
+      case "settlement_proposed":
+        return "تسوية مقترحة";
       case "settlement_confirmed":
         return "تسوية مؤكدة";
+      case "settlement_rejected":
       case "settlement_cancelled":
-        return "تسوية ملغاة";
+        return "تسوية مرفوضة";
       case "member_joined":
         return "عضو جديد";
       case "member_left":
@@ -120,11 +132,6 @@ export default function ActivityLog({
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="font-medium">
-                        <span className="text-indigo-400">
-                          {log.user?.id === user?.id
-                            ? "أنت"
-                            : sanitize(log.user?.display_name)}
-                        </span>{" "}
                         {sanitize(formatActivity(log))}
                       </p>
                       <p className="text-sm text-gray-400">

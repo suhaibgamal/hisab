@@ -52,12 +52,15 @@ export default function GroupHeader({
     (m) => m.users?.supabase_auth_id === user?.id
   );
 
+  const shouldShowInviteCode =
+    group?.invite_code_visible || currentUserRole === "manager";
+
   return (
     <header className="w-full mb-8">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 sm:gap-8">
         {/* Right: Invite code and settings */}
         <div className="flex flex-row items-center gap-4 order-1 sm:order-2">
-          {group?.invite_code_visible && (
+          {shouldShowInviteCode && (
             <div className="flex items-center gap-1 bg-gray-800 px-2 py-0.5 rounded text-xs text-indigo-200">
               <span>رمز الدعوة:</span>
               <span className="font-mono font-bold text-base">
@@ -77,16 +80,16 @@ export default function GroupHeader({
               >
                 <FiShare2 className="w-3 h-3" />
               </button>
-              {onSettingsClick && (
-                <button
-                  onClick={onSettingsClick}
-                  className="p-1 rounded-full bg-indigo-800 hover:bg-indigo-900 text-white shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                  title="إعدادات المجموعة"
-                >
-                  <FiSettings className="w-4 h-4" />
-                </button>
-              )}
             </div>
+          )}
+          {onSettingsClick && currentUserRole === "manager" && (
+            <button
+              onClick={onSettingsClick}
+              className="p-2 rounded-full bg-indigo-800 hover:bg-indigo-900 text-white shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              title="إعدادات المجموعة"
+            >
+              <FiSettings className="w-5 h-5" />
+            </button>
           )}
         </div>
         {/* Left: Group metadata */}
