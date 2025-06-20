@@ -1,0 +1,8 @@
+{
+  "imports": {
+    "std/http/server": "https://deno.land/std@0.224.0/http/server.ts",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2",
+    "jsr:@supabase/functions-js/edge-runtime.d.ts": "jsr:@supabase/functions-js/edge-runtime.d.ts",
+    "shared/cors": "../_shared/cors.ts"
+  }
+}

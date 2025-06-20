@@ -40,10 +40,10 @@ export default function SettingsModal({
       <form id="settingsForm" onSubmit={onSubmit} className="space-y-8">
         {/* Basic Settings Section */}
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-lg font-semibold text-indigo-400 mb-4">
+          <div className="flex items-center gap-2 text-lg font-semibold text-cyan-400 mb-4">
             <h4>الإعدادات الأساسية</h4>
           </div>
-          <div className="bg-gray-700/50 p-4 rounded-lg space-y-4">
+          <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 p-4 rounded-lg space-y-4 border border-cyan-900/40">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
                 اسم المجموعة
@@ -121,10 +121,10 @@ export default function SettingsModal({
 
         {/* Member Management Section */}
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-lg font-semibold text-indigo-400 mb-4">
+          <div className="flex items-center gap-2 text-lg font-semibold text-cyan-400 mb-4">
             <h4>إدارة الأعضاء</h4>
           </div>
-          <div className="bg-gray-700/50 p-4 rounded-lg space-y-6">
+          <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 p-4 rounded-lg space-y-6 border border-cyan-900/40">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
                 الحد الأقصى للأعضاء ({members.length} حالياً)
@@ -160,10 +160,10 @@ export default function SettingsModal({
 
         {/* Privacy & Security Section */}
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-lg font-semibold text-indigo-400 mb-4">
+          <div className="flex items-center gap-2 text-lg font-semibold text-cyan-400 mb-4">
             <h4>الخصوصية والأمان</h4>
           </div>
-          <div className="bg-gray-700/50 p-4 rounded-lg space-y-4">
+          <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 p-4 rounded-lg space-y-4 border border-cyan-900/40">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
                 من يمكنه رؤية سجل النشاط

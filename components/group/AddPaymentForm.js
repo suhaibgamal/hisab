@@ -37,7 +37,7 @@ export default function AddPaymentForm({
   };
 
   return (
-    <div className="bg-gray-800 p-6 rounded-lg shadow-md">
+    <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 p-6 rounded-lg shadow-md border border-cyan-900/40">
       <h2 className="text-2xl font-semibold mb-4">إضافة دفعة جديدة</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>

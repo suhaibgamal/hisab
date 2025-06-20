@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
+import AuthProviderLayout from "./AuthProviderLayout";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Hisab",
-  description: "Hisab is a simple and secure expense tracking app for groups.",
+  title: "حساب - تتبع المصاريف المشتركة",
+  description: "تطبيق لتتبع المصاريف المشتركة وتسوية الديون",
 };
 
 export default function RootLayout({ children }) {
@@ -23,8 +24,15 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-900 text-gray-200`}
       >
-        {children}
-        <Toaster richColors theme="dark" />
+        <AuthProviderLayout>
+          {children}
+          <Toaster
+            richColors
+            theme="dark"
+            position="top-center"
+            duration={8000}
+          />
+        </AuthProviderLayout>
       </body>
     </html>
   );

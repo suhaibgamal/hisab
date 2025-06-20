@@ -23,6 +23,14 @@ import ActivityLog from "../../../components/group/ActivityLog";
 import SettingsModal from "../../../components/group/SettingsModal";
 import ConfirmationModal from "../../../components/group/ConfirmationModal";
 
+// Import Utilities
+import {
+  formatActivity,
+  handleExportBalances,
+  handleExportActivity,
+  getDisplayName,
+} from "./utils";
+
 export default function GroupPage() {
   const { groupId } = useParams();
 
@@ -166,16 +174,6 @@ export default function GroupPage() {
   );
 
   // --- HANDLER FUNCTIONS ---
-  const getDisplayName = useCallback(
-    (userObj) => {
-      if (!userObj) return "مستخدم";
-      return userObj.id === currentUserDbId
-        ? "أنت"
-        : userObj.display_name || userObj.username;
-    },
-    [currentUserDbId]
-  );
-
   const handleAddPayment = async ({
     description,
     amount,
@@ -329,92 +327,6 @@ export default function GroupPage() {
     }
   };
 
-  const formatActivity = useCallback((log) => {
-    const userName = log.user?.display_name || log.user?.username || "مستخدم";
-    const payload = log.payload || {};
-    switch (log.action_type) {
-      case "payment_added":
-        return `${userName} أضاف دفعة بقيمة $${parseFloat(
-          payload.amount || 0
-        ).toFixed(2)} لـ "${payload.description}"`;
-      case "payment_deleted":
-        return `${userName} حذف دفعة بقيمة $${parseFloat(
-          payload.amount || 0
-        ).toFixed(2)} لـ "${payload.description}"`;
-      case "group_created":
-        return `${userName} أنشأ المجموعة '${payload.group_name || ""}'`;
-      case "settlement_propose":
-      case "settlement_proposed":
-        return `${userName} بدأ تسوية مع ${
-          payload.to_user_name || "مستخدم"
-        } بقيمة $${parseFloat(payload.amount || 0).toFixed(2)}`;
-      case "settlement_confirmed":
-        return `${userName} أكد التسوية من ${
-          payload.from_user_name || "مستخدم"
-        } بقيمة $${parseFloat(payload.amount || 0).toFixed(2)}`;
-      case "settlement_rejected":
-        return `${userName} رفض التسوية من ${
-          payload.from_user_name || "مستخدم"
-        } بقيمة $${parseFloat(payload.amount || 0).toFixed(2)}`;
-      case "member_joined":
-        return `${userName} انضم للمجموعة`;
-      case "member_left":
-        return `${userName} غادر المجموعة`;
-      case "group_settings_updated":
-        return `${userName} قام بتحديث إعدادات المجموعة`;
-      default:
-        return (
-          log.description ||
-          `${userName} قام بنشاط غير معروف: ${log.action_type}`
-        );
-    }
-  }, []);
-
-  // --- EXPORT LOGIC ---
-  function toCSV(rows, headers) {
-    const escape = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    return [
-      headers.join(","),
-      ...rows.map((row) => headers.map((h) => escape(row[h])).join(",")),
-    ].join("\n");
-  }
-  const handleExportBalances = () => {
-    if (!balances.length) return toast.error("لا يوجد بيانات للتصدير");
-    const headers = ["display_name", "username", "balance", "joined_at"];
-    const rows = balances.map((b) => ({
-      display_name: b.display_name,
-      username: b.username,
-      balance: b.balance,
-      joined_at: b.joined_at ? new Date(b.joined_at).toLocaleDateString() : "",
-    }));
-    const csv = toCSV(rows, headers);
-    const blob = new Blob([csv], { type: "text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `group_balances_${groupId}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
-  const handleExportActivity = () => {
-    if (!activityLogs.length) return toast.error("لا يوجد سجل نشاط للتصدير");
-    const headers = ["user", "action_type", "description", "created_at"];
-    const rows = activityLogs.map((log) => ({
-      user: log.user?.display_name || log.user?.username || "مستخدم",
-      action_type: log.action_type,
-      description: formatActivity(log),
-      created_at: log.created_at
-        ? new Date(log.created_at).toLocaleString()
-        : "",
-    }));
-    const csv = toCSV(rows, headers);
-    const blob = new Blob([csv], { type: "text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `group_activity_${groupId}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
-
   // --- RENDER LOGIC ---
   if (isDataLoading) return <LoadingSpinner />;
   if (fatalError) return <GroupNotFound message={fatalError} />;
@@ -422,7 +334,7 @@ export default function GroupPage() {
 
   return (
     <ErrorBoundary>
-      <main className="flex flex-col items-center min-h-screen p-4 sm:p-8">
+      <main className="flex flex-col items-center min-h-screen p-4 sm:p-8 bg-gradient-to-br from-gray-900 via-gray-950 to-cyan-900">
         <div className="w-full max-w-7xl">
           <GroupHeader
             group={group}
@@ -439,51 +351,65 @@ export default function GroupPage() {
 
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
-              <BalanceSummary
-                balances={balances}
-                currentUserDbId={currentUserDbId}
-                paymentStats={paymentStats}
-                canExportData={canExportData}
-                onExport={handleExportBalances}
-              />
-              <DebtSummary
-                debts={debts}
-                settlements={settlements}
-                members={members}
-                user={user}
-                currentUserDbId={currentUserDbId}
-                settlementLoading={settlementLoading}
-                actionLoading={actionLoading}
-                onInitiateSettlement={handleInitiateSettlement}
-                onConfirmSettlement={handleConfirmSettlement}
-                onRejectSettlement={handleRejectSettlement}
-                getDisplayName={getDisplayName}
-              />
-              <AddPaymentForm
-                members={members}
-                user={user}
-                onAddPayment={handleAddPayment}
-                paymentLoading={paymentLoading}
-              />
+              <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40">
+                <BalanceSummary
+                  balances={balances}
+                  currentUserDbId={currentUserDbId}
+                  paymentStats={paymentStats}
+                  canExportData={canExportData}
+                  onExport={() => handleExportBalances(balances, groupId)}
+                />
+              </div>
+              <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40">
+                <DebtSummary
+                  debts={debts}
+                  settlements={settlements}
+                  members={members}
+                  user={user}
+                  currentUserDbId={currentUserDbId}
+                  settlementLoading={settlementLoading}
+                  actionLoading={actionLoading}
+                  onInitiateSettlement={handleInitiateSettlement}
+                  onConfirmSettlement={handleConfirmSettlement}
+                  onRejectSettlement={handleRejectSettlement}
+                  getDisplayName={(userObj) =>
+                    getDisplayName(userObj, currentUserDbId)
+                  }
+                />
+              </div>
+              <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40">
+                <AddPaymentForm
+                  members={members}
+                  user={user}
+                  onAddPayment={handleAddPayment}
+                  paymentLoading={paymentLoading}
+                />
+              </div>
             </div>
 
             <div className="space-y-8">
-              <PaymentsList
-                payments={payments}
-                currentUserDbId={currentUserDbId}
-                currentUserRole={currentUserRole}
-                onDeletePayment={handleDeletePayment}
-                loading={actionLoading}
-                getDisplayName={getDisplayName}
-              />
-              <ActivityLog
-                activityLogs={activityLogs}
-                canViewActivityLogs={canViewActivityLogs}
-                canExportData={canExportData}
-                onExport={handleExportActivity}
-                formatActivity={formatActivity}
-                user={user}
-              />
+              <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40">
+                <PaymentsList
+                  payments={payments}
+                  currentUserDbId={currentUserDbId}
+                  currentUserRole={currentUserRole}
+                  onDeletePayment={handleDeletePayment}
+                  loading={actionLoading}
+                  getDisplayName={(userObj) =>
+                    getDisplayName(userObj, currentUserDbId)
+                  }
+                />
+              </div>
+              <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40">
+                <ActivityLog
+                  activityLogs={activityLogs}
+                  canViewActivityLogs={canViewActivityLogs}
+                  canExportData={canExportData}
+                  onExport={() => handleExportActivity(activityLogs, groupId)}
+                  formatActivity={formatActivity}
+                  user={user}
+                />
+              </div>
             </div>
           </div>
         </div>
