@@ -352,63 +352,63 @@ export default function GroupPage() {
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
               <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40">
-                <BalanceSummary
-                  balances={balances}
-                  currentUserDbId={currentUserDbId}
-                  paymentStats={paymentStats}
-                  canExportData={canExportData}
-                  onExport={() => handleExportBalances(balances, groupId)}
-                />
+              <BalanceSummary
+                balances={balances}
+                currentUserDbId={currentUserDbId}
+                paymentStats={paymentStats}
+                canExportData={canExportData}
+                onExport={() => handleExportBalances(balances, groupId)}
+              />
               </div>
               <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40">
-                <DebtSummary
-                  debts={debts}
-                  settlements={settlements}
-                  members={members}
-                  user={user}
-                  currentUserDbId={currentUserDbId}
-                  settlementLoading={settlementLoading}
-                  actionLoading={actionLoading}
-                  onInitiateSettlement={handleInitiateSettlement}
-                  onConfirmSettlement={handleConfirmSettlement}
-                  onRejectSettlement={handleRejectSettlement}
-                  getDisplayName={(userObj) =>
-                    getDisplayName(userObj, currentUserDbId)
-                  }
-                />
+              <DebtSummary
+                debts={debts}
+                settlements={settlements}
+                members={members}
+                user={user}
+                currentUserDbId={currentUserDbId}
+                settlementLoading={settlementLoading}
+                actionLoading={actionLoading}
+                onInitiateSettlement={handleInitiateSettlement}
+                onConfirmSettlement={handleConfirmSettlement}
+                onRejectSettlement={handleRejectSettlement}
+                getDisplayName={(userObj) =>
+                  getDisplayName(userObj, currentUserDbId)
+                }
+              />
               </div>
               <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40">
-                <AddPaymentForm
-                  members={members}
-                  user={user}
-                  onAddPayment={handleAddPayment}
-                  paymentLoading={paymentLoading}
-                />
+              <AddPaymentForm
+                members={members}
+                user={user}
+                onAddPayment={handleAddPayment}
+                paymentLoading={paymentLoading}
+              />
               </div>
             </div>
 
             <div className="space-y-8">
               <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40">
-                <PaymentsList
-                  payments={payments}
-                  currentUserDbId={currentUserDbId}
-                  currentUserRole={currentUserRole}
-                  onDeletePayment={handleDeletePayment}
-                  loading={actionLoading}
-                  getDisplayName={(userObj) =>
-                    getDisplayName(userObj, currentUserDbId)
-                  }
-                />
+              <PaymentsList
+                payments={payments}
+                currentUserDbId={currentUserDbId}
+                currentUserRole={currentUserRole}
+                onDeletePayment={handleDeletePayment}
+                loading={actionLoading}
+                getDisplayName={(userObj) =>
+                  getDisplayName(userObj, currentUserDbId)
+                }
+              />
               </div>
               <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40">
-                <ActivityLog
-                  activityLogs={activityLogs}
-                  canViewActivityLogs={canViewActivityLogs}
-                  canExportData={canExportData}
-                  onExport={() => handleExportActivity(activityLogs, groupId)}
-                  formatActivity={formatActivity}
-                  user={user}
-                />
+              <ActivityLog
+                activityLogs={activityLogs}
+                canViewActivityLogs={canViewActivityLogs}
+                canExportData={canExportData}
+                onExport={() => handleExportActivity(activityLogs, groupId)}
+                formatActivity={formatActivity}
+                user={user}
+              />
               </div>
             </div>
           </div>

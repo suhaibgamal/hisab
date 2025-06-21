@@ -68,7 +68,12 @@ export function useGroupData(groupId) {
           (m) => m.users?.supabase_auth_id === session.user.id
         );
         if (!currentMember) {
-          router.replace(`/join/${groupId}`);
+          // Redirect to join page with invite code if available
+          if (groupData && groupData.invite_code) {
+            router.replace(`/join/${groupData.invite_code}`);
+          } else {
+            router.replace(`/join/unknown`);
+          }
           return;
         }
         setCurrentUserRole(currentMember.role);

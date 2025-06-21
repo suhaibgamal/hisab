@@ -10,18 +10,17 @@ import LoadingSpinner from "../../../components/LoadingSpinner";
 import ErrorMessage from "../../../components/ErrorMessage";
 import ErrorBoundary from "../../../components/ErrorBoundary";
 import JoinGroupNotFound from "../../../components/JoinGroupNotFound";
+import { useAuth } from "../../auth/AuthContext";
 
-function isValidUUID(uuid) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    uuid
-  );
+function isValidInviteCode(code) {
+  return /^[A-Z0-9]{8,}$/i.test(code);
 }
 
 export default function JoinGroupPage({ params }) {
   const router = useRouter();
   const { groupId } = usePromise(params);
+  const { user: authUser, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
   const [error, setError] = useState("");
   const [needsPassword, setNeedsPassword] = useState(false);
   const [groupName, setGroupName] = useState("");
@@ -30,28 +29,27 @@ export default function JoinGroupPage({ params }) {
   const [submitting, setSubmitting] = useState(false);
   const [fatalError, setFatalError] = useState(null);
 
-  // Check user session on mount
+  // Wait for auth context
   useEffect(() => {
-    const storedUser = localStorage.getItem("hisab_user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    } else {
-      toast.error("يجب تسجيل الدخول أولاً.");
-      router.replace("/");
-    }
-  }, [router]);
-
-  // Attempt to join group on mount (if user is present)
-  useEffect(() => {
-    if (!user) return;
-    if (!isValidUUID(groupId)) {
-      setFatalError("رابط المجموعة غير صالح.");
+    if (authLoading) return;
+    if (!authUser) {
+      setFatalError("يجب تسجيل الدخول أولاً.");
       setLoading(false);
+      router.replace("/dashboard");
+      return;
+    }
+    // Try to join group
+    if (!isValidInviteCode(groupId)) {
+      setFatalError(
+        "رمز الدعوة غير صالح. يجب أن يكون 8 أحرف أو أرقام على الأقل."
+      );
+      setLoading(false);
+      router.replace("/dashboard");
       return;
     }
     joinGroup();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [authUser, authLoading]);
 
   // Main join logic
   const joinGroup = useCallback(
@@ -63,31 +61,27 @@ export default function JoinGroupPage({ params }) {
           "join-group",
           {
             body: {
-              group_id: groupId,
+              group_identifier: groupId,
               ...(passwordAttempt ? { password: passwordAttempt } : {}),
             },
           }
         );
-
         // Handle network or function invocation errors
         if (fnError) {
           throw new Error(fnError.message || "Network error");
         }
-
         // Handle group not found or invalid
         if (data?.error) {
-          setFatalError("المجموعة غير موجودة أو الرابط غير صالح.");
+          setFatalError("رمز الدعوة غير صالح أو المجموعة غير متاحة.");
           setLoading(false);
           return;
         }
-
         // Already a member
         if (data?.success && data?.message?.includes("Already a member")) {
           toast.success("أنت بالفعل عضو في هذه المجموعة.");
-          router.replace(`/group/${groupId}`);
+          router.replace(`/group/${data.group_id || groupId}`);
           return;
         }
-
         // Private group, needs password
         if (data?.is_private && data?.password_hash) {
           setNeedsPassword(true);
@@ -96,7 +90,6 @@ export default function JoinGroupPage({ params }) {
           setLoading(false);
           return;
         }
-
         // Member limit reached or other join error
         if (data?.error || data?.details) {
           setError(data.error || data.details);
@@ -104,14 +97,12 @@ export default function JoinGroupPage({ params }) {
           setLoading(false);
           return;
         }
-
         // Successful join
         if (data?.success) {
           toast.success(data.message || "تم الانضمام للمجموعة بنجاح!");
-          router.replace(`/group/${groupId}`);
+          router.replace(`/group/${data.group_id || groupId}`);
           return;
         }
-
         // Fallback: unknown response
         throw new Error("حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.");
       } catch (err) {
@@ -151,7 +142,7 @@ export default function JoinGroupPage({ params }) {
   };
 
   // Loading state
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <LoadingSpinner />
@@ -177,8 +168,9 @@ export default function JoinGroupPage({ params }) {
                 placeholder="كلمة المرور"
                 className="w-full px-3 py-2 bg-gray-700 text-gray-200 placeholder-gray-400 border border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 required
-                minLength={6}
+                minLength={8}
                 maxLength={50}
+                autoFocus
               />
               <button
                 type="submit"
@@ -196,6 +188,8 @@ export default function JoinGroupPage({ params }) {
 
   // Error state (if not already redirected)
   if (fatalError) {
+    // Always redirect to dashboard after showing error
+    setTimeout(() => router.replace("/dashboard"), 2000);
     return <JoinGroupNotFound message={fatalError} />;
   }
 
