@@ -67,17 +67,26 @@ serve(async (req) => {
       );
     }
 
+    // Determine context-aware defaults
+    const isPrivate =
+      privacy_level === "private" || (password && password.length > 0);
+    const final_activity_log_privacy =
+      activity_log_privacy ?? (isPrivate ? "managers" : "all");
+    const final_export_control =
+      export_control ?? (isPrivate ? "managers" : "all");
+    const final_member_limit = member_limit ?? 10;
+
     // 2. Call the new database function to handle creation
     const { data: newGroup, error: rpcError } = await supabaseClient
       .rpc("create_new_group", {
-        p_name: name,
-        p_description: description,
-        p_privacy_level: privacy_level,
-        p_password: password,
-        p_member_limit: member_limit,
         p_user_id: userData.id,
-        p_activity_log_privacy: activity_log_privacy,
-        p_export_control: export_control,
+        p_name: name,
+        p_description: description ?? null,
+        p_privacy_level: privacy_level ?? null,
+        p_password: password ?? null,
+        p_member_limit: final_member_limit,
+        p_activity_log_privacy: final_activity_log_privacy,
+        p_export_control: final_export_control,
       })
       .select()
       .single();
