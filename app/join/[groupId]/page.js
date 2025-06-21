@@ -166,7 +166,7 @@ export default function JoinGroupPage({ params }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="كلمة المرور"
-                className="w-full px-3 py-2 bg-gray-700 text-gray-200 placeholder-gray-400 border border-gray-600 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 bg-gray-700 text-gray-200 placeholder-gray-400 border border-gray-600 rounded-md focus:outline-none focus:ring-cyan-500 focus:border-cyan-500"
                 required
                 minLength={8}
                 maxLength={50}
@@ -174,7 +174,7 @@ export default function JoinGroupPage({ params }) {
               />
               <button
                 type="submit"
-                className="w-full px-4 py-3 text-base font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400"
+                className="w-full px-4 py-3 text-base font-medium text-white bg-cyan-700 rounded-md hover:bg-cyan-800 disabled:bg-cyan-400"
                 disabled={submitting}
               >
                 {submitting ? "جاري التحقق..." : "انضمام"}

@@ -120,7 +120,7 @@ export default function AddPaymentForm({
                       setSelectedBeneficiaries([]);
                     }
                   }}
-                  className="h-4 w-4 text-indigo-500 bg-gray-600 border-gray-500 rounded focus:ring-indigo-600"
+                  className="h-4 w-4 text-cyan-500 bg-gray-600 border-gray-500 rounded-lg focus:ring-cyan-600"
                 />
                 <label
                   htmlFor="select-all-beneficiaries"
@@ -150,7 +150,7 @@ export default function AddPaymentForm({
                       type="checkbox"
                       checked={selectedBeneficiaries.includes(member.id)}
                       onChange={() => handleBeneficiaryChange(member.id)}
-                      className="h-4 w-4 text-indigo-500 bg-gray-600 border-gray-500 rounded focus:ring-indigo-600"
+                      className="h-4 w-4 text-cyan-500 bg-gray-600 border-gray-500 rounded-lg focus:ring-cyan-600"
                     />
                     <label
                       htmlFor={`beneficiary-${member.id}`}
@@ -170,7 +170,7 @@ export default function AddPaymentForm({
         <button
           type="submit"
           disabled={paymentLoading}
-          className="w-full px-4 py-3 text-base font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400"
+          className="w-full px-4 py-3 text-base font-medium text-white bg-cyan-700 rounded-lg hover:bg-cyan-800 disabled:bg-cyan-400"
         >
           {paymentLoading ? "جاري الإضافة..." : "إضافة دفعة"}
         </button>

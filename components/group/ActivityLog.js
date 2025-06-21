@@ -30,14 +30,14 @@ export default function ActivityLog({
       case "settlement_cancelled":
         return "bg-red-900/50 text-red-400";
       case "group_created":
-        return "bg-indigo-900/50 text-indigo-400";
+        return "bg-cyan-900/50 text-cyan-400";
       case "member_joined":
         return "bg-green-900/50 text-green-400";
       case "member_left":
         return "bg-red-900/50 text-red-400";
       case "group_settings_updated":
       case "update_settings":
-        return "bg-blue-900/50 text-blue-400";
+        return "bg-cyan-900/50 text-cyan-400";
       case "role_promoted":
         return "bg-green-900/50 text-green-400";
       case "role_demoted":
@@ -96,12 +96,12 @@ export default function ActivityLog({
         {canExportData && (
           <button
             onClick={onExport}
-            className="px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 rounded-md flex items-center gap-2"
+            className="px-3 py-1 text-sm bg-cyan-700 hover:bg-cyan-800 rounded-lg flex items-center gap-2 text-white"
           >
             <span>تصدير السجل</span>
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4"
+              className="h-4 w-4 text-cyan-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -126,7 +126,7 @@ export default function ActivityLog({
                 <div
                   key={log.id}
                   className={`p-4 bg-gray-900/50 rounded-lg ${
-                    index === 0 ? "border-2 border-indigo-500" : ""
+                    index === 0 ? "border-2 border-cyan-400" : ""
                   }`}
                 >
                   <div className="flex justify-between items-start">
@@ -159,7 +159,7 @@ export default function ActivityLog({
           {activityLogs.length > 5 && (
             <button
               onClick={() => setShowAllLogs(!showAllLogs)}
-              className="mt-4 w-full py-2 text-center text-indigo-400 hover:text-indigo-300"
+              className="mt-4 w-full py-2 text-center text-cyan-400 hover:text-cyan-300"
             >
               {showAllLogs ? "عرض أقل" : `عرض الكل (${activityLogs.length})`}
             </button>

@@ -23,7 +23,7 @@ export default function JoinGroupNotFound({ message }) {
       </p>
       <Link
         href="/"
-        className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition"
+        className="px-6 py-2 bg-cyan-700 text-white rounded-md hover:bg-cyan-800 transition"
       >
         العودة للصفحة الرئيسية
       </Link>

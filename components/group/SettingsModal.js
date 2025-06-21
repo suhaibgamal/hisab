@@ -14,7 +14,7 @@ export default function SettingsModal({
       <button
         type="button"
         onClick={onClose}
-        className="px-4 py-2 rounded-md text-white bg-gray-600 hover:bg-gray-500"
+        className="px-4 py-2 rounded-lg text-white bg-gray-600 hover:bg-gray-500"
         disabled={loading}
       >
         إلغاء
@@ -22,7 +22,7 @@ export default function SettingsModal({
       <button
         type="submit"
         form="settingsForm"
-        className="px-6 py-2 text-base font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400"
+        className="px-6 py-2 text-base font-medium text-white bg-cyan-700 rounded-lg hover:bg-cyan-800 disabled:bg-cyan-400"
         disabled={loading}
       >
         {loading ? "جاري الحفظ..." : "حفظ التغييرات"}
@@ -146,7 +146,7 @@ export default function SettingsModal({
                 name="invite_code_visible"
                 checked={settings.invite_code_visible}
                 onChange={onSettingsChange}
-                className="h-4 w-4 text-indigo-600 rounded"
+                className="h-4 w-4 text-cyan-600 rounded-lg"
               />
               <label
                 htmlFor="invite_code_visible"

@@ -181,7 +181,7 @@ export default function GroupPage() {
   }) => {
     const parsedAmount = parseFloat(amount);
     if (!description.trim() || isNaN(parsedAmount) || parsedAmount <= 0) {
-      return toast.error("Please fill all fields with valid values.");
+      return toast.error("يرجى ملء جميع الحقول بقيم صحيحة.");
     }
     setPaymentLoading(true);
     try {
@@ -334,8 +334,8 @@ export default function GroupPage() {
 
   return (
     <ErrorBoundary>
-      <main className="flex flex-col items-center min-h-screen p-4 sm:p-8 bg-gradient-to-br from-gray-900 via-gray-950 to-cyan-900">
-        <div className="w-full max-w-7xl">
+      <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-gray-900 via-gray-950 to-cyan-900">
+        <div className="w-full max-w-7xl mx-auto">
           <GroupHeader
             group={group}
             members={members}
@@ -349,72 +349,80 @@ export default function GroupPage() {
             connectionStatus={connectionStatus}
           />
 
-          <div className="grid lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-8">
-              <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40">
-              <BalanceSummary
-                balances={balances}
-                currentUserDbId={currentUserDbId}
-                paymentStats={paymentStats}
-                canExportData={canExportData}
-                onExport={() => handleExportBalances(balances, groupId)}
-              />
+          <div className="flex flex-col lg:flex-row gap-8 mt-8">
+            {/* Left column: Balance, Debts, Add Payment */}
+            <div className="flex flex-col gap-8 lg:w-1/2 w-full">
+              <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40 w-full">
+                <BalanceSummary
+                  balances={balances}
+                  currentUserDbId={currentUserDbId}
+                  paymentStats={paymentStats}
+                  canExportData={canExportData}
+                  onExport={() => handleExportBalances(balances, groupId)}
+                />
               </div>
-              <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40">
-              <DebtSummary
-                debts={debts}
-                settlements={settlements}
-                members={members}
-                user={user}
-                currentUserDbId={currentUserDbId}
-                settlementLoading={settlementLoading}
-                actionLoading={actionLoading}
-                onInitiateSettlement={handleInitiateSettlement}
-                onConfirmSettlement={handleConfirmSettlement}
-                onRejectSettlement={handleRejectSettlement}
-                getDisplayName={(userObj) =>
-                  getDisplayName(userObj, currentUserDbId)
-                }
-              />
+              <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40 w-full">
+                <DebtSummary
+                  debts={debts}
+                  settlements={settlements}
+                  members={members}
+                  user={user}
+                  currentUserDbId={currentUserDbId}
+                  settlementLoading={settlementLoading}
+                  actionLoading={actionLoading}
+                  onInitiateSettlement={handleInitiateSettlement}
+                  onConfirmSettlement={handleConfirmSettlement}
+                  onRejectSettlement={handleRejectSettlement}
+                  getDisplayName={(userObj) =>
+                    getDisplayName(userObj, currentUserDbId)
+                  }
+                  buttonClassName="px-4 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-800 text-white font-semibold shadow focus:outline-none focus:ring-2 focus:ring-cyan-400 text-base"
+                  iconClassName="w-5 h-5 text-cyan-400"
+                />
               </div>
-              <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40">
-              <AddPaymentForm
-                members={members}
-                user={user}
-                onAddPayment={handleAddPayment}
-                paymentLoading={paymentLoading}
-              />
+              <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40 w-full">
+                <AddPaymentForm
+                  members={members}
+                  user={user}
+                  onAddPayment={handleAddPayment}
+                  paymentLoading={paymentLoading}
+                  buttonClassName="px-4 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-800 text-white font-semibold shadow focus:outline-none focus:ring-2 focus:ring-cyan-400 text-base"
+                  iconClassName="w-5 h-5 text-cyan-400"
+                />
               </div>
             </div>
-
-            <div className="space-y-8">
-              <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40">
-              <PaymentsList
-                payments={payments}
-                currentUserDbId={currentUserDbId}
-                currentUserRole={currentUserRole}
-                onDeletePayment={handleDeletePayment}
-                loading={actionLoading}
-                getDisplayName={(userObj) =>
-                  getDisplayName(userObj, currentUserDbId)
-                }
-              />
+            {/* Right column: Payments List, Activity Log */}
+            <div className="flex flex-col gap-8 lg:w-1/2 w-full">
+              <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40 w-full">
+                <PaymentsList
+                  payments={payments}
+                  currentUserDbId={currentUserDbId}
+                  currentUserRole={currentUserRole}
+                  onDeletePayment={handleDeletePayment}
+                  loading={actionLoading}
+                  getDisplayName={(userObj) =>
+                    getDisplayName(userObj, currentUserDbId)
+                  }
+                  buttonClassName="px-4 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-800 text-white font-semibold shadow focus:outline-none focus:ring-2 focus:ring-cyan-400 text-base"
+                  iconClassName="w-5 h-5 text-cyan-400"
+                />
               </div>
-              <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40">
-              <ActivityLog
-                activityLogs={activityLogs}
-                canViewActivityLogs={canViewActivityLogs}
-                canExportData={canExportData}
-                onExport={() => handleExportActivity(activityLogs, groupId)}
-                formatActivity={formatActivity}
-                user={user}
-              />
+              <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40 w-full">
+                <ActivityLog
+                  activityLogs={activityLogs}
+                  canViewActivityLogs={canViewActivityLogs}
+                  canExportData={canExportData}
+                  onExport={() => handleExportActivity(activityLogs, groupId)}
+                  formatActivity={formatActivity}
+                  user={user}
+                  buttonClassName="px-4 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-800 text-white font-semibold shadow focus:outline-none focus:ring-2 focus:ring-cyan-400 text-base"
+                  iconClassName="w-5 h-5 text-cyan-400"
+                />
               </div>
             </div>
           </div>
         </div>
       </main>
-
       <SettingsModal
         isOpen={isSettingsModalOpen}
         onClose={() => setSettingsModalOpen(false)}

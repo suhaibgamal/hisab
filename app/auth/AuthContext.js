@@ -112,7 +112,7 @@ export function AuthProvider({ children }) {
         await supabase.auth.setSession(data.session);
         // No need to manually poll session; the helpers will update context
       } catch (err) {
-        const defaultError = "An unexpected error occurred. Please try again.";
+        const defaultError = "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.";
         toast.error(err.message || defaultError);
         setAuthError(err.message || defaultError);
       } finally {

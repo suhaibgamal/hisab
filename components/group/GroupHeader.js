@@ -57,45 +57,57 @@ export default function GroupHeader({
 
   return (
     <header className="w-full mb-8">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 sm:gap-8">
-        {/* Right: Invite code and settings */}
-        <div className="flex flex-row items-center gap-4 order-1 sm:order-2">
-          {shouldShowInviteCode && (
-            <div className="flex items-center gap-1 bg-gray-800 px-2 py-0.5 rounded text-xs text-indigo-200">
-              <span>رمز الدعوة:</span>
-              <span className="font-mono font-bold text-base">
+      {/* Top row: Back to dashboard (left), Invite code/share/copy (right) */}
+      <div className="flex justify-between items-center mb-4">
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-2 px-3 py-1.5 border border-cyan-400 text-cyan-300 rounded-lg hover:bg-cyan-900/30 transition text-sm"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+          العودة للوحة التحكم
+        </Link>
+        {group?.invite_code &&
+          (currentUserRole === "manager" || group.invite_code_visible) && (
+            <div className="flex items-center gap-2 text-end px-3 py-1.5 rounded-lg border border-cyan-400">
+              <span className="font-mono text-base text-sky-400 select-all">
                 {group.invite_code}
               </span>
               <button
                 onClick={handleCopyInviteCode}
-                className="p-1 rounded hover:bg-indigo-900 focus:outline-none"
-                title="نسخ رمز الدعوة"
+                className="p-1.5 text-cyan-100 rounded-full hover:bg-cyan-800"
+                aria-label="Copy invite code"
               >
-                <FiCopy className="w-3 h-3" />
+                <FiCopy className="h-4 w-4" />
               </button>
               <button
                 onClick={handleShareGroup}
-                className="p-1 rounded hover:bg-indigo-900 focus:outline-none"
-                title="مشاركة المجموعة"
+                className="p-1.5 text-cyan-100 rounded-full hover:bg-cyan-800"
+                aria-label="Share group"
               >
-                <FiShare2 className="w-3 h-3" />
+                <FiShare2 className="h-4 w-4" />
               </button>
             </div>
           )}
-          {onSettingsClick && currentUserRole === "manager" && (
-            <button
-              onClick={onSettingsClick}
-              className="p-2 rounded-full bg-indigo-800 hover:bg-indigo-900 text-white shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              title="إعدادات المجموعة"
-            >
-              <FiSettings className="w-5 h-5" />
-            </button>
-          )}
-        </div>
-        {/* Left: Group metadata */}
-        <div className="flex flex-col items-start sm:items-start order-2 sm:order-1 flex-1">
+      </div>
+      {/* Main row: Group metadata (left), Settings (right) in the same row */}
+      <div className="flex flex-row justify-between items-center gap-4 sm:gap-8">
+        {/* Group metadata */}
+        <div className="flex flex-col items-start sm:items-start flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-3xl font-bold">{group?.name}</h1>
+            <h1 className="text-3xl font-bold text-white">{group?.name}</h1>
             {connectionStatus && (
               <span
                 title={
@@ -125,7 +137,7 @@ export default function GroupHeader({
               />
             )}
           </div>
-          <div className="text-gray-400 text-sm flex flex-col gap-1">
+          <div className="text-cyan-200 text-sm flex flex-col gap-1">
             {group?.description && <span>{group.description}</span>}
             {group?.updated_at && (
               <span>
@@ -142,12 +154,24 @@ export default function GroupHeader({
             )}
             {group?.creator_id && members && (
               <span>
-                المدير:{" "}
+                المنشئ:{" "}
                 {members.find((m) => m.users?.id === group.creator_id)?.users
                   ?.display_name || "مستخدم"}
               </span>
             )}
           </div>
+        </div>
+        {/* Settings button (right, same row as group metadata) */}
+        <div className="flex items-center">
+          {currentUserRole === "manager" && (
+            <button
+              onClick={onSettingsClick}
+              className="p-2 rounded-full"
+              aria-label="Group Settings"
+            >
+              <FiSettings className="h-6 w-6 text-sky-400" />
+            </button>
+          )}
         </div>
       </div>
     </header>

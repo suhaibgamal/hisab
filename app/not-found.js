@@ -5,7 +5,7 @@ export default function NotFound() {
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        className="h-20 w-20 text-indigo-400 mb-6"
+        className="h-20 w-20 text-cyan-400 mb-6"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -23,7 +23,7 @@ export default function NotFound() {
       </p>
       <Link
         href="/"
-        className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition"
+        className="px-6 py-2 bg-cyan-700 text-white rounded-md hover:bg-cyan-800 transition"
       >
         العودة للصفحة الرئيسية
       </Link>

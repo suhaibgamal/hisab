@@ -1,4 +1,13 @@
-import { FiDollarSign } from "react-icons/fi";
+import {
+  FiDollarSign,
+  FiArrowUp,
+  FiArrowDown,
+  FiUserX,
+  FiLogOut,
+} from "react-icons/fi";
+import { useState } from "react";
+import { toast } from "sonner";
+import { supabase } from "../../lib/supabase";
 
 function StatCard({ title, value, subtext, isCurrency = true }) {
   return (
@@ -19,15 +28,83 @@ export default function BalanceSummary({
   paymentStats,
   canExportData,
   onExport,
+  currentUserRole,
+  group,
+  refetchGroupData,
+  user,
 }) {
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Helper: is current user the creator?
+  const isCreator = group?.creator_id === user?.id;
+
+  // Handler: Promote/Demote/Kick/Leave
+  const handleRoleChange = async (targetUserId, newRole) => {
+    setActionLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "update-member-role",
+        {
+          body: {
+            group_id: group.id,
+            target_user_id: targetUserId,
+            new_role: newRole,
+          },
+        }
+      );
+      if (error || data?.error) throw new Error(error?.message || data?.error);
+      toast.success(data?.message || "تم تحديث الدور بنجاح");
+      refetchGroupData();
+    } catch (err) {
+      toast.error(err.message || "فشل تحديث الدور");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleKick = async (targetUserId) => {
+    setActionLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke("kick-group-member", {
+        body: {
+          group_id: group.id,
+          user_to_kick_id: targetUserId,
+        },
+      });
+      if (error) throw new Error(error.message);
+      toast.success("تم طرد العضو بنجاح");
+      refetchGroupData();
+    } catch (err) {
+      toast.error(err.message || "فشل طرد العضو");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleLeave = async () => {
+    setActionLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("leave-group", {
+        body: { group_id: group.id },
+      });
+      if (error || data?.error) throw new Error(error?.message || data?.error);
+      toast.success(data?.message || "لقد غادرت المجموعة بنجاح");
+      window.location.href = "/dashboard";
+    } catch (err) {
+      toast.error(err.message || "فشل مغادرة المجموعة");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   return (
-    <div className="bg-gray-800 p-6 rounded-lg shadow-md mb-8">
+    <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40 p-6 mb-8">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-semibold">ملخص الحسابات</h2>
         {canExportData && (
           <button
             onClick={onExport}
-            className="px-3 py-1 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
+            className="px-3 py-1 text-sm font-medium text-white bg-cyan-700 rounded-lg hover:bg-cyan-800 focus:outline-none focus:ring-2 focus:ring-cyan-400 shadow"
           >
             تصدير البيانات
           </button>
@@ -36,11 +113,31 @@ export default function BalanceSummary({
       <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
         {balances.map((member) => {
           const isCurrentUser = member.user_id === currentUserDbId;
+          const isTargetManager = member.role === "manager";
+          const isTargetMember = member.role === "member";
+          const canPromote =
+            (isCreator && isTargetMember) ||
+            (currentUserRole === "manager" && isTargetMember && !isCurrentUser);
+          const canDemote =
+            isCreator &&
+            isTargetManager &&
+            !isCurrentUser &&
+            member.user_id !== group.creator_id;
+          const canKick =
+            (isCreator &&
+              !isCurrentUser &&
+              member.user_id !== group.creator_id) ||
+            (currentUserRole === "manager" && isTargetMember && !isCurrentUser);
+          const canLeave = isCurrentUser && !isCreator;
+          // Determine badge label and color
+          let roleLabel = null;
+          if (member.role === "manager") roleLabel = "مدير";
+          else if (member.role === "member") roleLabel = "عضو";
           return (
             <div
               key={member.user_id}
               className={`p-4 rounded-lg ${
-                isCurrentUser ? "border-2 border-indigo-500 " : ""
+                isCurrentUser ? "border-2 border-cyan-500 " : ""
               }${
                 member.balance > 0
                   ? "bg-green-900/50"
@@ -54,20 +151,10 @@ export default function BalanceSummary({
                   {isCurrentUser
                     ? "أنت"
                     : member.display_name || member.username || "مستخدم"}
-                  {member.role === "manager" && (
-                    <span className="ml-2 text-xs bg-indigo-700 text-white px-2 py-1 rounded-full">
-                      مدير
-                    </span>
-                  )}
-                  {member.role === "member" && (
-                    <span className="ml-2 text-xs bg-gray-600 text-white px-2 py-1 rounded-full">
-                      عضو
-                    </span>
-                  )}
                 </p>
-                {isCurrentUser && (
-                  <span className="text-xs bg-indigo-500 text-white px-2 py-1 rounded-full">
-                    أنت
+                {roleLabel && (
+                  <span className="text-xs bg-cyan-700 text-white px-2 py-1 rounded-full">
+                    {roleLabel}
                   </span>
                 )}
               </div>
@@ -100,6 +187,61 @@ export default function BalanceSummary({
                   }).format(new Date(member.joined_at))}
                 </p>
               )}
+              {/* Action buttons */}
+              <div className="flex gap-2 mt-3 flex-wrap">
+                {canPromote && (
+                  <button
+                    disabled={actionLoading}
+                    onClick={() => {
+                      if (window.confirm("تأكيد ترقية العضو إلى مدير؟")) {
+                        handleRoleChange(member.user_id, "manager");
+                      }
+                    }}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-green-700 text-white rounded hover:bg-green-800"
+                  >
+                    <FiArrowUp /> ترقية
+                  </button>
+                )}
+                {canDemote && (
+                  <button
+                    disabled={actionLoading}
+                    onClick={() => {
+                      if (window.confirm("تأكيد تنزيل المدير إلى عضو؟")) {
+                        handleRoleChange(member.user_id, "member");
+                      }
+                    }}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-yellow-700 text-white rounded hover:bg-yellow-800"
+                  >
+                    <FiArrowDown /> تنزيل
+                  </button>
+                )}
+                {canKick && (
+                  <button
+                    disabled={actionLoading}
+                    onClick={() => {
+                      if (window.confirm("تأكيد طرد العضو من المجموعة؟")) {
+                        handleKick(member.user_id);
+                      }
+                    }}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-red-700 text-white rounded hover:bg-red-800"
+                  >
+                    <FiUserX /> طرد
+                  </button>
+                )}
+                {canLeave && (
+                  <button
+                    disabled={actionLoading}
+                    onClick={() => {
+                      if (window.confirm("تأكيد مغادرة المجموعة؟")) {
+                        handleLeave();
+                      }
+                    }}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-800"
+                  >
+                    <FiLogOut /> مغادرة
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}

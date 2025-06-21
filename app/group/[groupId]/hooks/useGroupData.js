@@ -196,21 +196,21 @@ export function useGroupData(groupId) {
               : Array.isArray(parsedData)
               ? parsedData
               : [];
-          setBalances(
-            balancesArray
-              .map((balance) => {
-                const member = membersData.find(
-                  (m) => m.users?.id === balance.user_id
-                );
-                if (!member?.users) return null;
-                return {
-                  ...balance,
-                  ...member.users,
-                  joined_at: member.joined_at,
-                };
-              })
-              .filter(Boolean)
-          );
+
+          // Merge all members with balances, defaulting to 0 if missing
+          const allBalances = membersData.map((member) => {
+            const balanceEntry = balancesArray.find(
+              (b) => b.user_id === member.users.id
+            );
+            return {
+              user_id: member.users.id,
+              balance: balanceEntry ? balanceEntry.balance : 0,
+              ...member.users,
+              joined_at: member.joined_at,
+              role: member.role,
+            };
+          });
+          setBalances(allBalances);
         }
 
         const { data: debtsData, error: debtsError } = debtsResult;

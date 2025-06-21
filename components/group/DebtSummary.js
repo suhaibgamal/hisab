@@ -36,7 +36,11 @@ export default function DebtSummary({
     try {
       await actionFn(settlementId);
     } catch (error) {
-      toast.error(`Failed to ${action} settlement: ${error.message}`);
+      toast.error(
+        `فشل في ${
+          action === "confirm" ? "تأكيد" : action === "reject" ? "رفض" : action
+        } التسوية: ${error.message}`
+      );
     } finally {
       setLoadingSettlementId(null);
     }
@@ -46,11 +50,11 @@ export default function DebtSummary({
     if (settlementLoading) return;
     try {
       if (amount <= 0) {
-        throw new Error("Settlement amount must be positive");
+        throw new Error("يجب أن يكون مبلغ التسوية أكبر من صفر");
       }
       await onInitiateSettlement(toUserId, amount);
     } catch (error) {
-      toast.error(`Failed to initiate settlement: ${error.message}`);
+      toast.error(`فشل بدء التسوية: ${error.message}`);
     }
   };
 
@@ -73,7 +77,7 @@ export default function DebtSummary({
       {/* Section for Pending Settlements */}
       {pendingSettlements.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-indigo-400 mb-2">
+          <h3 className="text-lg font-semibold text-cyan-400 mb-2">
             تسويات معلقة
           </h3>
           <div className="space-y-3">
@@ -150,7 +154,7 @@ export default function DebtSummary({
             {pendingSettlements.length > 3 && (
               <button
                 onClick={() => setShowAllSettlements(!showAllSettlements)}
-                className="w-full text-center text-sm text-indigo-400 hover:underline mt-2"
+                className="w-full text-center text-cyan-400 hover:underline mt-2"
               >
                 {showAllSettlements
                   ? "عرض أقل"
@@ -164,7 +168,7 @@ export default function DebtSummary({
       {/* Section for Outstanding Debts */}
       {outstandingDebts.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-green-400 mb-2">
+          <h3 className="text-lg font-semibold text-cyan-400 mb-2">
             ديون قائمة
           </h3>
           <div className="space-y-3">
@@ -221,7 +225,7 @@ export default function DebtSummary({
             {outstandingDebts.length > 3 && (
               <button
                 onClick={() => setShowAllDebts(!showAllDebts)}
-                className="w-full text-center text-sm text-indigo-400 hover:underline mt-2"
+                className="w-full text-center text-cyan-400 hover:underline mt-2"
               >
                 {showAllDebts
                   ? "عرض أقل"

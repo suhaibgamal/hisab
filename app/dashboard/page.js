@@ -126,21 +126,35 @@ export default function DashboardPage() {
                     </a>
                   </div>
                   {group.invite_code && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs text-gray-400">رمز الدعوة:</span>
-                      <span className="font-mono text-base text-cyan-300 bg-gray-900 px-2 py-1 rounded select-all border border-cyan-800">
-                        {group.invite_code}
-                      </span>
+                    <div className="flex items-center gap-2 text-start sm:text-end bg-gray-800 p-3 rounded-lg">
+                      <div>
+                        <p className="text-sm text-gray-400">رمز الدعوة</p>
+                        <p className="font-mono text-lg">{group.invite_code}</p>
+                      </div>
                       <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(group.invite_code);
-                          window?.toast?.success?.("تم نسخ رمز الدعوة!");
-                        }}
-                        className="p-1 rounded hover:bg-cyan-900 focus:outline-none"
-                        title="نسخ رمز الدعوة"
+                        onClick={() =>
+                          navigator.clipboard.writeText(group.invite_code)
+                        }
+                        className="p-2 text-gray-200 rounded-full hover:bg-gray-700"
+                        aria-label="Copy invite code"
                       >
-                        <FiCopy className="w-4 h-4 text-cyan-400" />
+                        <FiCopy className="h-5 w-5" />
                       </button>
+                      {typeof navigator !== "undefined" && navigator.share && (
+                        <button
+                          onClick={() =>
+                            navigator.share({
+                              title: `انضم إلى مجموعتي على حساب! رمز الدعوة: ${group.invite_code}`,
+                              text: `انضم إلى مجموعتي على حساب! رمز الدعوة: ${group.invite_code}`,
+                              url: `${window.location.origin}/join/${group.invite_code}`,
+                            })
+                          }
+                          className="p-2 text-gray-200 rounded-full hover:bg-gray-700"
+                          aria-label="Share group"
+                        >
+                          <FiShare2 className="h-5 w-5" />
+                        </button>
+                      )}
                     </div>
                   )}
                   <div className="flex-1" />

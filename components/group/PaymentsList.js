@@ -52,14 +52,14 @@ export default function PaymentsList({
   }, [payments, paymentFilter, currentUserDbId, paymentSort]);
 
   return (
-    <div className="bg-gray-800 p-6 rounded-lg shadow-md">
+    <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40 p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
         <h2 className="text-2xl font-semibold">الدفعات</h2>
         <div className="flex flex-wrap gap-2">
           <select
             value={paymentFilter}
             onChange={(e) => setPaymentFilter(e.target.value)}
-            className="bg-gray-700 text-sm rounded-md border-gray-600"
+            className="bg-gray-700 text-sm rounded-lg border-gray-600"
           >
             <option value="all">كل الدفعات ({payments.length})</option>
             <option value="paid">
@@ -93,7 +93,7 @@ export default function PaymentsList({
           <select
             value={paymentSort}
             onChange={(e) => setPaymentSort(e.target.value)}
-            className="bg-gray-700 text-sm rounded-md border-gray-600"
+            className="bg-gray-700 text-sm rounded-lg border-gray-600"
           >
             <option value="newest">الأحدث</option>
             <option value="oldest">الأقدم</option>
@@ -139,30 +139,30 @@ export default function PaymentsList({
                         className="text-red-500 hover:text-red-400 disabled:text-gray-500"
                         aria-label="Delete payment"
                       >
-                        <FiTrash2 className="h-5 w-5" />
+                        <FiTrash2 className="h-5 w-5 text-cyan-400" />
                       </button>
                     )}
                 </div>
 
                 <div className="space-y-2 text-gray-300">
                   <div className="flex items-center gap-2">
-                    <FiDollarSign className="h-5 w-5 text-indigo-400" />
+                    <FiDollarSign className="h-5 w-5 text-cyan-400" />
                     <span className="font-semibold text-white">
                       ${parseFloat(payment.amount).toFixed(2)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <FiUser className="h-5 w-5 text-indigo-400" />
+                    <FiUser className="h-5 w-5 text-cyan-400" />
                     <span>{getDisplayName(payment.payer)}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <FiCalendar className="h-5 w-5 text-indigo-400" />
+                    <FiCalendar className="h-5 w-5 text-cyan-400" />
                     <span>
                       {new Date(payment.created_at).toLocaleDateString()}
                     </span>
                   </div>
                   <div className="flex items-start gap-2">
-                    <FiUsers className="h-5 w-5 mt-0.5 text-indigo-400" />
+                    <FiUsers className="h-5 w-5 mt-0.5 text-cyan-400" />
                     <span className="flex-1">
                       المستفيدون:{" "}
                       {payment.splits.filter((s) => s.amount < 0).length === 0
@@ -191,7 +191,7 @@ export default function PaymentsList({
           {filteredPayments.length > 3 && (
             <button
               onClick={() => setShowAllPayments(!showAllPayments)}
-              className="mt-4 w-full text-center text-indigo-400 hover:underline"
+              className="mt-4 w-full text-center text-cyan-400 hover:underline"
             >
               {showAllPayments ? "إظهار أقل" : "إظهار الكل"}
             </button>
