@@ -116,8 +116,8 @@ Contributions are welcome! Please open issues or pull requests for bugs, feature
 ## Contact & Support
 
 - **Author:** Suhaib Gamal
-- **Email:** [your.email@example.com](mailto:your.email@example.com)
-- **Issues:** [GitHub Issues](https://github.com/YOUR_USERNAME/hisab/issues)
+- **Email:** [sohibgamal28@gmail.com](mailto:sohibgamal28@gmail.com)
+- **Issues:** [GitHub Issues](https://github.com/suhaibgamal/hisab/issues)
 
 ---
 
