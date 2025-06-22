@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { supabase } from "../../../../lib/supabase";
 import { useRouter } from "next/navigation";
 
@@ -11,7 +11,7 @@ export function useGroupData(groupId) {
   const [fatalError, setFatalError] = useState(null);
 
   const [user, setUser] = useState(null);
-  const [group, setGroup] = useState(null);
+  const [group, setGroupState] = useState(null);
   const [members, setMembers] = useState([]);
   const [payments, setPayments] = useState([]);
   const [settlements, setSettlements] = useState([]);
@@ -21,6 +21,8 @@ export function useGroupData(groupId) {
 
   const [currentUserDbId, setCurrentUserDbId] = useState(null);
   const [currentUserRole, setCurrentUserRole] = useState(null);
+
+  const setGroup = useCallback((group) => setGroupState(group), []);
 
   const fetchGroupData = useCallback(
     async (showPageLoader = true) => {
@@ -119,11 +121,6 @@ export function useGroupData(groupId) {
           (t) => t.type === "settlement"
         ); // Keep all settlements for UI display
 
-        // Separate active settlements for balance calculation
-        const activeSettlements = settlements.filter(
-          (t) => t.status === "active"
-        );
-
         setPayments(
           activePayments.map((payment) => {
             const payerSplit = payment.splits.find((s) => s.amount > 0);
@@ -135,47 +132,18 @@ export function useGroupData(groupId) {
           })
         );
 
-        // Store all settlements for UI but calculate balances only with active ones
         const processedSettlements = settlements.map((settlement) => {
           const fromUserSplit = settlement.splits.find((s) => s.amount > 0);
           const toUserSplit = settlement.splits.find((s) => s.amount < 0);
           return {
             ...settlement,
             amount: fromUserSplit ? fromUserSplit.amount : 0,
+            from_user_id: fromUserSplit ? fromUserSplit.user_id : null,
             to_user_id: toUserSplit ? toUserSplit.user_id : null,
           };
         });
 
         setSettlements(processedSettlements);
-
-        // Update paymentStats calculation to only use active settlements
-        const totalPaid =
-          activePayments.reduce((sum, p) => {
-            const payerSplit = p.splits.find((s) => s.amount > 0);
-            return payerSplit && payerSplit.user_id === currentUserDbId
-              ? sum + payerSplit.amount
-              : sum;
-          }, 0) +
-          activeSettlements.reduce((sum, s) => {
-            const fromUserSplit = s.splits.find((split) => split.amount > 0);
-            return fromUserSplit && fromUserSplit.user_id === currentUserDbId
-              ? sum + fromUserSplit.amount
-              : sum;
-          }, 0);
-
-        const totalReceived =
-          activePayments.reduce((sum, p) => {
-            const userSplit = p.splits.find(
-              (s) => s.user_id === currentUserDbId && s.amount < 0
-            );
-            return userSplit ? sum + Math.abs(userSplit.amount) : sum;
-          }, 0) +
-          activeSettlements.reduce((sum, s) => {
-            const toUserSplit = s.splits.find((split) => split.amount < 0);
-            return toUserSplit && toUserSplit.user_id === currentUserDbId
-              ? sum + Math.abs(toUserSplit.amount)
-              : sum;
-          }, 0);
 
         const { data: activityLogsData, error: activityLogsError } =
           activityLogsResult;
@@ -234,83 +202,163 @@ export function useGroupData(groupId) {
     [groupId, router, fatalError]
   );
 
+  // Fetch only payments and settlements
+  const fetchPaymentsAndSettlements = useCallback(async () => {
+    try {
+      const [transactionsResult, balancesResult, debtsResult] =
+        await Promise.all([
+          supabase
+            .from("transactions")
+            .select(
+              "*, splits:transaction_splits(id, user_id, amount, user:users(id, username, display_name))"
+            )
+            .eq("group_id", groupId)
+            .order("created_at", { ascending: false }),
+          supabase.functions.invoke("get-group-balances", {
+            body: { group_id: groupId },
+          }),
+          supabase.functions.invoke("get-simplified-debts", {
+            body: { group_id: groupId },
+          }),
+        ]);
+
+      const { data: transactionsData } = transactionsResult;
+      const allTransactions = transactionsData || [];
+      const activePayments = allTransactions.filter(
+        (t) => t.type === "payment" && t.status === "active"
+      );
+      const settlements = allTransactions.filter(
+        (t) => t.type === "settlement"
+      );
+
+      setPayments(
+        activePayments.map((payment) => {
+          const payerSplit = payment.splits.find((s) => s.amount > 0);
+          return {
+            ...payment,
+            amount: payerSplit ? payerSplit.amount : 0,
+            payer: payerSplit ? payerSplit.user : null,
+          };
+        })
+      );
+      const processedSettlements = settlements.map((settlement) => {
+        const fromUserSplit = settlement.splits.find((s) => s.amount > 0);
+        const toUserSplit = settlement.splits.find((s) => s.amount < 0);
+        return {
+          ...settlement,
+          amount: fromUserSplit ? fromUserSplit.amount : 0,
+          from_user_id: fromUserSplit ? fromUserSplit.user_id : null,
+          to_user_id: toUserSplit ? toUserSplit.user_id : null,
+        };
+      });
+      setSettlements(processedSettlements);
+
+      // Balances
+      const { data: balancesData } = balancesResult;
+      const parsedData =
+        typeof balancesData === "string"
+          ? JSON.parse(balancesData)
+          : balancesData;
+      const balancesArray =
+        parsedData && Array.isArray(parsedData.balances)
+          ? parsedData.balances
+          : Array.isArray(parsedData)
+          ? parsedData
+          : [];
+      setBalances((prev) => {
+        // Use previous members state for mapping
+        return members.map((member) => {
+          const balanceEntry = balancesArray.find(
+            (b) => b.user_id === member.users.id
+          );
+          return {
+            user_id: member.users.id,
+            balance: balanceEntry ? balanceEntry.balance : 0,
+            ...member.users,
+            joined_at: member.joined_at,
+            role: member.role,
+          };
+        });
+      });
+
+      // Debts
+      const { data: debtsData } = debtsResult;
+      if (debtsData && Array.isArray(debtsData.debts)) {
+        setDebts(debtsData.debts);
+      } else {
+        setDebts([]);
+      }
+    } catch (err) {
+      // fallback: refetch all if error
+      fetchGroupData(false);
+    }
+  }, [groupId, members, fetchGroupData]);
+
+  // Fetch only members
+  const fetchMembers = useCallback(async () => {
+    try {
+      const { data: membersData, error: membersError } = await supabase
+        .from("group_members")
+        .select(
+          "id, role, joined_at, users(id, username, display_name, supabase_auth_id)"
+        )
+        .eq("group_id", groupId);
+      if (membersError) throw new Error("Could not verify your membership.");
+      setMembers(membersData);
+    } catch (err) {
+      // fallback: refetch all if error
+      fetchGroupData(false);
+    }
+  }, [groupId, fetchGroupData]);
+
   useEffect(() => {
     fetchGroupData(true);
   }, [fetchGroupData]);
 
-  return {
-    loading,
-    error,
-    fatalError,
-    user,
-    group,
-    members,
-    payments,
-    settlements,
-    activityLogs,
-    balances,
-    debts,
-    currentUserDbId,
-    currentUserRole,
-    setGroup, // Expose setGroup for realtime updates
-    fetchGroupData, // Expose for manual refetching
-  };
-}
+  // --- MEMOIZED FUNCTIONS FOR STABILITY ---
+  // These must be memoized to avoid breaking real-time subscriptions in parent components.
+  const setGroupMemo = useCallback((group) => {
+    setGroup(group);
+  }, []);
 
-// New client-side debt calculation function
-function calculateSimplifiedDebts(transactions, members) {
-  const balances = new Map();
-  members.forEach((m) => balances.set(m.users.id, 0));
-
-  // Only 'active' transactions affect the final balance
-  transactions
-    .filter((t) => t.status === "active")
-    .forEach((t) => {
-      t.splits.forEach((split) => {
-        balances.set(
-          split.user_id,
-          (balances.get(split.user_id) || 0) + parseFloat(split.amount)
-        );
-      });
-    });
-
-  const debtors = [];
-  const creditors = [];
-
-  balances.forEach((balance, userId) => {
-    if (balance < 0) {
-      debtors.push({ userId, amount: -balance });
-    } else if (balance > 0) {
-      creditors.push({ userId, amount: balance });
-    }
-  });
-
-  debtors.sort((a, b) => a.amount - b.amount);
-  creditors.sort((a, b) => a.amount - b.amount);
-
-  const debts = [];
-  let i = 0,
-    j = 0;
-  while (i < debtors.length && j < creditors.length) {
-    const debtor = debtors[i];
-    const creditor = creditors[j];
-    const amount = Math.min(debtor.amount, creditor.amount);
-
-    if (amount > 0.005) {
-      // Epsilon for floating point issues
-      debts.push({
-        from_user_id: debtor.userId,
-        to_user_id: creditor.userId,
-        amount: amount,
-      });
-    }
-
-    debtor.amount -= amount;
-    creditor.amount -= amount;
-
-    if (debtor.amount < 0.005) i++;
-    if (creditor.amount < 0.005) j++;
-  }
-
-  return debts;
+  return useMemo(
+    () => ({
+      group,
+      setGroup: setGroupMemo,
+      fetchGroupData,
+      fetchPaymentsAndSettlements,
+      fetchMembers,
+      loading,
+      error,
+      fatalError,
+      user,
+      members,
+      payments,
+      settlements,
+      activityLogs,
+      balances,
+      debts,
+      currentUserDbId,
+      currentUserRole,
+    }),
+    [
+      group,
+      setGroupMemo,
+      fetchGroupData,
+      fetchPaymentsAndSettlements,
+      fetchMembers,
+      loading,
+      error,
+      fatalError,
+      user,
+      members,
+      payments,
+      settlements,
+      activityLogs,
+      balances,
+      debts,
+      currentUserDbId,
+      currentUserRole,
+    ]
+  );
 }

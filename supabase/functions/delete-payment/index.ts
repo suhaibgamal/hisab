@@ -11,7 +11,7 @@ serve(async (req) => {
     const { group_id, payment_id } = await req.json();
 
     if (!group_id || !payment_id) {
-      return new Response(JSON.stringify({ error: "Invalid input" }), {
+      return new Response(JSON.stringify({ error: "مدخلات غير صالحة" }), {
         status: 400,
         headers: corsHeaders,
       });

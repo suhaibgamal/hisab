@@ -8,35 +8,50 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
+import ConfirmationModal from "./ConfirmationModal";
+import { formatCurrency } from "../../app/group/[groupId]/utils";
 
-function StatCard({ title, value, subtext, isCurrency = true }) {
+function StatCard({ title, value, subtext, isCurrency = true, currency }) {
   return (
     <div className="p-3 bg-gray-700 rounded-lg">
       <p className="text-gray-400">{title}</p>
       <p className="text-lg font-semibold">
-        {isCurrency && "$"}
-        {value}
+        {isCurrency ? formatCurrency(value, currency) : value}
       </p>
       {subtext && <p className="text-xs text-gray-400">{subtext}</p>}
     </div>
   );
 }
 
-export default function BalanceSummary({
-  balances,
-  currentUserDbId,
-  paymentStats,
-  canExportData,
-  onExport,
-  currentUserRole,
-  group,
-  refetchGroupData,
-  user,
-}) {
+export default function BalanceSummary(props) {
+  const {
+    balances,
+    currentUserDbId,
+    paymentStats,
+    canExportData,
+    onExport,
+    currentUserRole,
+    group,
+    refetchGroupData,
+    user,
+  } = props;
+
   const [actionLoading, setActionLoading] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({
+    open: false,
+    title: "",
+    description: "",
+    onConfirm: null,
+    loading: false,
+  });
+
+  // Guard: show loading if group is not loaded yet
+  if (!group) {
+    return <div>جاري تحميل بيانات المجموعة...</div>;
+  }
 
   // Helper: is current user the creator?
-  const isCreator = group?.creator_id === user?.id;
+  const isCreator = group?.creator_id === currentUserDbId;
 
   // Handler: Promote/Demote/Kick/Leave
   const handleRoleChange = async (targetUserId, newRole) => {
@@ -87,13 +102,43 @@ export default function BalanceSummary({
       const { data, error } = await supabase.functions.invoke("leave-group", {
         body: { group_id: group.id },
       });
-      if (error || data?.error) throw new Error(error?.message || data?.error);
+      if (error || data?.error) {
+        // Special message for creator
+        if ((data?.error || error?.message)?.includes("creator cannot leave")) {
+          toast.error(
+            "لا يمكن للمنشئ مغادرة مجموعته. يجب حذف المجموعة أو نقل الملكية أولاً."
+          );
+        } else {
+          toast.error(data?.error || error?.message || "فشل مغادرة المجموعة");
+        }
+        return;
+      }
       toast.success(data?.message || "لقد غادرت المجموعة بنجاح");
       window.location.href = "/dashboard";
     } catch (err) {
       toast.error(err.message || "فشل مغادرة المجموعة");
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const openConfirm = (title, description, onConfirm) => {
+    setConfirmModal({
+      open: true,
+      title,
+      description,
+      onConfirm,
+      loading: false,
+    });
+  };
+  const closeConfirm = () => setConfirmModal((m) => ({ ...m, open: false }));
+  const handleModalConfirm = async () => {
+    setConfirmModal((m) => ({ ...m, loading: true }));
+    try {
+      await confirmModal.onConfirm();
+      closeConfirm();
+    } catch (e) {
+      closeConfirm();
     }
   };
 
@@ -115,9 +160,13 @@ export default function BalanceSummary({
           const isCurrentUser = member.user_id === currentUserDbId;
           const isTargetManager = member.role === "manager";
           const isTargetMember = member.role === "member";
+          // Always use isCreator for creator privileges
           const canPromote =
             (isCreator && isTargetMember) ||
-            (currentUserRole === "manager" && isTargetMember && !isCurrentUser);
+            (!isCreator &&
+              currentUserRole === "manager" &&
+              isTargetMember &&
+              !isCurrentUser);
           const canDemote =
             isCreator &&
             isTargetManager &&
@@ -127,12 +176,16 @@ export default function BalanceSummary({
             (isCreator &&
               !isCurrentUser &&
               member.user_id !== group.creator_id) ||
-            (currentUserRole === "manager" && isTargetMember && !isCurrentUser);
+            (!isCreator &&
+              currentUserRole === "manager" &&
+              isTargetMember &&
+              !isCurrentUser);
           const canLeave = isCurrentUser && !isCreator;
           // Determine badge label and color
           let roleLabel = null;
           if (member.role === "manager") roleLabel = "مدير";
           else if (member.role === "member") roleLabel = "عضو";
+
           return (
             <div
               key={member.user_id}
@@ -168,7 +221,7 @@ export default function BalanceSummary({
                 }`}
               >
                 {member.balance > 0 ? "+" : ""}
-                {member.balance.toFixed(2)} $
+                {formatCurrency(member.balance, group.currency)}
               </p>
               {isCurrentUser && member.balance !== 0 && (
                 <p className="text-sm mt-2 text-gray-400">
@@ -192,11 +245,15 @@ export default function BalanceSummary({
                 {canPromote && (
                   <button
                     disabled={actionLoading}
-                    onClick={() => {
-                      if (window.confirm("تأكيد ترقية العضو إلى مدير؟")) {
-                        handleRoleChange(member.user_id, "manager");
-                      }
-                    }}
+                    onClick={() =>
+                      openConfirm(
+                        "تأكيد ترقية العضو إلى مدير",
+                        `هل أنت متأكد أنك تريد ترقية ${
+                          member.display_name || member.username || "هذا العضو"
+                        } إلى مدير؟`,
+                        () => handleRoleChange(member.user_id, "manager")
+                      )
+                    }
                     className="flex items-center gap-1 px-2 py-1 text-xs bg-green-700 text-white rounded hover:bg-green-800"
                   >
                     <FiArrowUp /> ترقية
@@ -205,11 +262,15 @@ export default function BalanceSummary({
                 {canDemote && (
                   <button
                     disabled={actionLoading}
-                    onClick={() => {
-                      if (window.confirm("تأكيد تنزيل المدير إلى عضو؟")) {
-                        handleRoleChange(member.user_id, "member");
-                      }
-                    }}
+                    onClick={() =>
+                      openConfirm(
+                        "تأكيد تنزيل المدير إلى عضو",
+                        `هل أنت متأكد أنك تريد تنزيل ${
+                          member.display_name || member.username || "هذا المدير"
+                        } إلى عضو؟`,
+                        () => handleRoleChange(member.user_id, "member")
+                      )
+                    }
                     className="flex items-center gap-1 px-2 py-1 text-xs bg-yellow-700 text-white rounded hover:bg-yellow-800"
                   >
                     <FiArrowDown /> تنزيل
@@ -218,11 +279,15 @@ export default function BalanceSummary({
                 {canKick && (
                   <button
                     disabled={actionLoading}
-                    onClick={() => {
-                      if (window.confirm("تأكيد طرد العضو من المجموعة؟")) {
-                        handleKick(member.user_id);
-                      }
-                    }}
+                    onClick={() =>
+                      openConfirm(
+                        "تأكيد طرد العضو",
+                        `هل أنت متأكد أنك تريد طرد ${
+                          member.display_name || member.username || "هذا العضو"
+                        } من المجموعة؟`,
+                        () => handleKick(member.user_id)
+                      )
+                    }
                     className="flex items-center gap-1 px-2 py-1 text-xs bg-red-700 text-white rounded hover:bg-red-800"
                   >
                     <FiUserX /> طرد
@@ -231,11 +296,13 @@ export default function BalanceSummary({
                 {canLeave && (
                   <button
                     disabled={actionLoading}
-                    onClick={() => {
-                      if (window.confirm("تأكيد مغادرة المجموعة؟")) {
-                        handleLeave();
-                      }
-                    }}
+                    onClick={() =>
+                      openConfirm(
+                        "تأكيد مغادرة المجموعة",
+                        "هل أنت متأكد أنك تريد مغادرة هذه المجموعة؟ لن تتمكن من العودة إلا بدعوة جديدة.",
+                        () => handleLeave()
+                      )
+                    }
                     className="flex items-center gap-1 px-2 py-1 text-xs bg-gray-700 text-white rounded hover:bg-gray-800"
                   >
                     <FiLogOut /> مغادرة
@@ -251,20 +318,31 @@ export default function BalanceSummary({
           title="إجمالي ما دفعت"
           value={paymentStats.totalPaid.toFixed(2)}
           subtext="(شامل المدفوعات والتسويات)"
+          currency={group.currency}
         />
         <StatCard
           title="إجمالي ما استلمت"
           value={paymentStats.totalReceived.toFixed(2)}
           subtext="(شامل المستحقات والتسويات)"
+          currency={group.currency}
         />
         <div className="sm:col-span-1 col-span-2">
           <StatCard
             title="متوسط مصاريف المجموعة الشهرية"
             value={paymentStats.monthlyAverage.toFixed(2)}
             subtext="(منذ إنشاء المجموعة)"
+            currency={group.currency}
           />
         </div>
       </div>
+      <ConfirmationModal
+        isOpen={confirmModal.open}
+        onClose={closeConfirm}
+        onConfirm={handleModalConfirm}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        loading={confirmModal.loading}
+      />
     </div>
   );
 }

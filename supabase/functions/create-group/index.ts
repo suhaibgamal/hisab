@@ -26,6 +26,7 @@ serve(async (req) => {
       privacy_level,
       activity_log_privacy,
       export_control,
+      currency,
     } = await req.json();
 
     // Create a Supabase client with the user's auth token
@@ -45,7 +46,7 @@ serve(async (req) => {
       error: userError,
     } = await supabaseClient.auth.getUser();
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: "User not authenticated" }), {
+      return new Response(JSON.stringify({ error: "المستخدم غير مصرح به" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -87,6 +88,7 @@ serve(async (req) => {
         p_member_limit: final_member_limit,
         p_activity_log_privacy: final_activity_log_privacy,
         p_export_control: final_export_control,
+        p_currency: currency,
       })
       .select()
       .single();

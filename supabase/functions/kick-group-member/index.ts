@@ -9,12 +9,15 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
   try {
-    const { group_id, target_user_id, new_role } = await req.json();
-    if (!group_id || !target_user_id || !new_role) {
-      return new Response(JSON.stringify({ error: "مفقودة الحقون المطلوبة" }), {
-        status: 400,
-        headers: corsHeaders,
-      });
+    const { group_id, user_to_kick_id } = await req.json();
+    if (!group_id || !user_to_kick_id) {
+      return new Response(
+        JSON.stringify({ error: "Missing required fields" }),
+        {
+          status: 400,
+          headers: corsHeaders,
+        }
+      );
     }
     const userClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -25,33 +28,26 @@ serve(async (req) => {
         },
       }
     );
-    const { data, error } = await userClient.rpc("change_group_member_role", {
+    const { error } = await userClient.rpc("kick_group_member", {
       p_group_id: group_id,
-      p_target_user_id: target_user_id,
-      p_new_role: new_role,
+      p_user_to_kick_id: user_to_kick_id,
     });
     if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
+      return new Response(JSON.stringify({ error: "الأعضاء غير مصرح به" }), {
         status: 400,
         headers: corsHeaders,
       });
     }
-    if (data?.error) {
-      return new Response(JSON.stringify({ error: data.error }), {
-        status: 403,
-        headers: corsHeaders,
-      });
-    }
     return new Response(
-      JSON.stringify({ success: true, message: data.message }),
+      JSON.stringify({ success: true, message: "Member kicked" }),
       {
         status: 200,
         headers: corsHeaders,
       }
     );
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
+    return new Response(JSON.stringify({ error: "حدث خطأ أثناء العملية" }), {
+      status: 400,
       headers: corsHeaders,
     });
   }

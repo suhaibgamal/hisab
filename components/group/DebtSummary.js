@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { formatCurrency } from "../../app/group/[groupId]/utils";
 
 export default function DebtSummary({
   debts,
@@ -12,6 +13,7 @@ export default function DebtSummary({
   onConfirmSettlement,
   onRejectSettlement,
   getDisplayName,
+  group,
 }) {
   const [showAllDebts, setShowAllDebts] = useState(false);
   const [showAllSettlements, setShowAllSettlements] = useState(false);
@@ -63,7 +65,7 @@ export default function DebtSummary({
 
   if (noActivity) {
     return (
-      <div className="bg-gray-800 p-6 rounded-lg shadow-md">
+      <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40 p-6">
         <h2 className="text-2xl font-semibold mb-4">ديون وتسويات</h2>
         <p className="text-gray-400">جميع الحسابات مسواة!</p>
       </div>
@@ -71,7 +73,7 @@ export default function DebtSummary({
   }
 
   return (
-    <div className="bg-gray-800 p-6 rounded-lg shadow-md">
+    <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40 p-6">
       <h2 className="text-2xl font-semibold mb-4">ديون وتسويات</h2>
 
       {/* Section for Pending Settlements */}
@@ -110,7 +112,7 @@ export default function DebtSummary({
                         </span>
                         <span> يريد تسوية </span>
                         <span className="font-bold text-yellow-400 mx-1">
-                          ${settlement.amount.toFixed(2)}
+                          {formatCurrency(settlement.amount, group.currency)}
                         </span>
                         <span> مع </span>
                         <span className="text-indigo-300">
@@ -202,7 +204,7 @@ export default function DebtSummary({
                         {getDisplayName(toUser)}
                       </span>
                       <span className="text-green-400 font-bold ml-2">
-                        ${formattedAmount}
+                        {formatCurrency(debt.amount, group.currency)}
                       </span>
                     </div>
                     {amDebtor && (

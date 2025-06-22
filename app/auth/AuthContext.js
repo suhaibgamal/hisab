@@ -69,7 +69,6 @@ export function AuthProvider({ children }) {
       await supabase.auth.signOut();
       toast.success("تم تسجيل الخروج بنجاح");
     } catch (err) {
-      console.error("Logout error:", err);
       toast.error("فشل تسجيل الخروج");
     }
   }, []);

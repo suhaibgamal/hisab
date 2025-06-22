@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { formatCurrency } from "../../app/group/[groupId]/utils";
 
 export default function AddPaymentForm({
   members,
@@ -28,11 +29,32 @@ export default function AddPaymentForm({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!description.trim()) {
+      toast.error("يرجى إدخال وصف للدفعة.");
+      return;
+    }
+    if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+      toast.error("يرجى إدخال مبلغ صحيح أكبر من صفر.");
+      return;
+    }
+    if (
+      selectedBeneficiaries.length === 0 ||
+      (members.length === 1 && selectedBeneficiaries.length === 0)
+    ) {
+      toast.error("يرجى اختيار مستفيد واحد على الأقل.");
+      return;
+    }
     onAddPayment({
-      description,
+      description: description.trim(),
       amount,
       selectedBeneficiaries,
       paymentDate,
+      onSuccess: () => {
+        setDescription("");
+        setAmount("");
+        setSelectedBeneficiaries([]);
+        setPaymentDate(new Date().toISOString().split("T")[0]);
+      },
     });
   };
 
@@ -54,6 +76,7 @@ export default function AddPaymentForm({
             onChange={(e) => setDescription(e.target.value)}
             className="w-full bg-gray-700 text-gray-200"
             required
+            maxLength={100}
           />
         </div>
         <div className="grid sm:grid-cols-2 gap-4">
@@ -72,7 +95,14 @@ export default function AddPaymentForm({
               className="w-full bg-gray-700 text-gray-200"
               required
               step="0.01"
+              min={0.01}
+              max={1000000}
             />
+            <span className="ml-2 text-gray-400">
+              {formatCurrency(1, group.currency)
+                .replace(/\d|[.,]/g, "")
+                .trim() || group.currency}
+            </span>
           </div>
           <div>
             <label

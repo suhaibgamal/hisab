@@ -11,7 +11,7 @@ serve(async (req) => {
   try {
     const { group_id } = await req.json();
     if (!group_id) {
-      return new Response(JSON.stringify({ error: "Missing group_id" }), {
+      return new Response(JSON.stringify({ error: "معرّف المجموعة مفقود" }), {
         status: 400,
         headers: corsHeaders,
       });

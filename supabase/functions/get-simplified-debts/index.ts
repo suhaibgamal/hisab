@@ -11,7 +11,7 @@ serve(async (req) => {
     const { group_id } = await req.json();
 
     if (!group_id) {
-      throw new Error("Group ID is required.");
+      throw new Error("معرّف المجموعة مطلوب.");
     }
 
     const userClient = createClient(

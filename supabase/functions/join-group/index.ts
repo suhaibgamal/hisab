@@ -1,6 +1,15 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+
+function extractInviteCode(identifier: string): string | null {
+  // Invite code: 8+ alphanumeric, case-insensitive
+  if (/^[A-Z0-9]{8,}$/i.test(identifier)) {
+    return identifier;
+  }
+  return null;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -14,7 +23,19 @@ serve(async (req) => {
     if (!group_identifier) {
       return new Response(
         JSON.stringify({
-          error: "Group identifier is required.",
+          error: "كود الدعوة مطلوب.",
+        }),
+        {
+          status: 400,
+          headers: corsHeaders,
+        }
+      );
+    }
+    const invite_code = extractInviteCode(group_identifier);
+    if (!invite_code) {
+      return new Response(
+        JSON.stringify({
+          error: "تنسيق كود الدعوة غير صحيح.",
         }),
         {
           status: 400,
@@ -42,7 +63,7 @@ serve(async (req) => {
     if (userError || !user) {
       return new Response(
         JSON.stringify({
-          error: "User not authenticated.",
+          error: "المستخدم غير مصرح به.",
         }),
         {
           status: 401,
@@ -59,7 +80,7 @@ serve(async (req) => {
     if (userRowError || !userRow) {
       return new Response(
         JSON.stringify({
-          error: "User not found in application database.",
+          error: "المستخدم غير موجود في قاعدة البيانات التطبيقية.",
         }),
         {
           status: 400,
@@ -68,34 +89,76 @@ serve(async (req) => {
       );
     }
     const appUserId = userRow.id;
-    // 4. Call the DB function, ALWAYS including p_password (even if null)
-    const { data, error: rpcError } = await userClient.rpc(
+
+    // 4. Robust group lookup (accept group_id, invite_code, or share code)
+    let groupQuery = userClient
+      .from("groups")
+      .select("id, name, password, privacy_level");
+    groupQuery = groupQuery.ilike("invite_code", invite_code);
+    const { data: group, error: groupError } = await groupQuery.maybeSingle();
+    if (groupError || !group) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "المجموعة غير موجودة أو غير متاحة. يرجى مراجعة كود الدعوة وإعادة المحاولة.",
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // 4. Call the DB function to handle all logic (membership, password, etc)
+    const { data: joinResult, error: rpcError } = await userClient.rpc(
       "join_group_securely",
       {
         p_user_id: appUserId,
-        p_group_identifier: group_identifier,
+        p_group_identifier: group.id, // Always use the resolved group_id for DB call
         p_password: password ?? null,
       }
     );
     if (rpcError) {
-      // Return the function's error message
+      return new Response(JSON.stringify({ error: rpcError.message }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // If already a member or joined successfully, return success
+    if (joinResult?.success) {
+      return new Response(JSON.stringify(joinResult), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // If password is required and not provided, prompt for password
+    if (joinResult?.error === "كلمة المرور مطلوبة" || joinResult?.is_private) {
       return new Response(
         JSON.stringify({
-          error: rpcError.message,
+          is_private: true,
+          group_name: group.name,
         }),
         {
-          status: 400,
-          headers: corsHeaders,
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
     }
-    // 5. Return the payload from your DB function
-    return new Response(JSON.stringify(data), {
+
+    // If password is wrong or other error, return error
+    if (joinResult?.error) {
+      return new Response(JSON.stringify({ error: joinResult.error }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Fallback: return the raw result
+    return new Response(JSON.stringify(joinResult), {
       status: 200,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json",
-      },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     // Catch parse errors, network issues, etc.

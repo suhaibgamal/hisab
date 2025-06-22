@@ -18,7 +18,7 @@ serve(async (req) => {
       !Array.isArray(splits) ||
       splits.length === 0
     ) {
-      return new Response(JSON.stringify({ error: "Invalid input" }), {
+      return new Response(JSON.stringify({ error: "مدخلات غير صالحة" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

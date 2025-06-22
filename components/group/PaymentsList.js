@@ -6,6 +6,7 @@ import {
   FiUsers,
   FiCalendar,
 } from "react-icons/fi";
+import { formatCurrency } from "../../app/group/[groupId]/utils";
 
 export default function PaymentsList({
   payments,
@@ -14,6 +15,7 @@ export default function PaymentsList({
   onDeletePayment,
   loading,
   getDisplayName,
+  group,
 }) {
   const [showAllPayments, setShowAllPayments] = useState(false);
   const [paymentFilter, setPaymentFilter] = useState("all");
@@ -148,7 +150,7 @@ export default function PaymentsList({
                   <div className="flex items-center gap-2">
                     <FiDollarSign className="h-5 w-5 text-cyan-400" />
                     <span className="font-semibold text-white">
-                      ${parseFloat(payment.amount).toFixed(2)}
+                      {formatCurrency(payment.amount, group.currency)}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">

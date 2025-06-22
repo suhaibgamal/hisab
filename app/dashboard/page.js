@@ -1,23 +1,17 @@
 "use client";
-import { useAuth } from "../auth/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import { FiUsers, FiCopy, FiShare2 } from "react-icons/fi";
+import { useAuth } from "../auth/AuthContext";
 
 export default function DashboardPage() {
-  const { user, groups, loading, handleLogout } = useAuth();
+  const { user, groups, handleLogout } = useAuth();
   const router = useRouter();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [logoutMessage, setLogoutMessage] = useState("");
   const [inviteInput, setInviteInput] = useState("");
   const [inviteError, setInviteError] = useState("");
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login");
-    }
-  }, [loading, user, router]);
 
   useEffect(() => {
     if (logoutMessage) {
@@ -26,12 +20,8 @@ export default function DashboardPage() {
     }
   }, [logoutMessage]);
 
-  if (loading || !user)
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner />
-      </div>
-    );
+  // If user is not present (should be rare due to middleware), return null
+  if (!user) return null;
 
   const handleLogoutWithMessage = async () => {
     setShowLogoutConfirm(false);

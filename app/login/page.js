@@ -1,12 +1,13 @@
 "use client";
 import { useAuth } from "../auth/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import LoadingSpinner from "../../components/LoadingSpinner";
 
 export default function LoginPage() {
   const { user, loading, handleAuthAction, authLoading, authError } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState({
     username: "",
@@ -14,19 +15,39 @@ export default function LoginPage() {
     displayName: "",
   });
   const [formError, setFormError] = useState("");
+  const [redirectPath, setRedirectPath] = useState(null);
 
   useEffect(() => {
-    if (!loading && user) {
-      router.replace("/dashboard");
+    const urlMode = searchParams.get("mode");
+    const urlRedirect = searchParams.get("redirect");
+    if (urlMode === "register" || urlMode === "login") {
+      setMode(urlMode);
     }
-  }, [loading, user, router]);
+    if (urlRedirect) {
+      setRedirectPath(urlRedirect);
+    }
+  }, [searchParams]);
 
-  if (loading)
+  useEffect(() => {
+    if (user) {
+      if (redirectPath) {
+        router.replace(redirectPath);
+      } else {
+        router.replace("/dashboard");
+      }
+    }
+  }, [user, router, redirectPath]);
+
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <LoadingSpinner />
       </div>
     );
+  }
+  if (user) {
+    return null;
+  }
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });

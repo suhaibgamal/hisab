@@ -13,6 +13,7 @@ export default function CreateGroupPage() {
     privacy: "public",
     password: "",
     member_limit: 10,
+    currency: "EGP",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -35,6 +36,10 @@ export default function CreateGroupPage() {
       setError("كلمة مرور المجموعة الخاصة يجب أن تكون 8 أحرف على الأقل.");
       return;
     }
+    if (!form.currency) {
+      setError("يرجى اختيار العملة الموحدة للمجموعة.");
+      return;
+    }
     setLoading(true);
     try {
       const { data, error: fnError } = await supabase.functions.invoke(
@@ -46,6 +51,7 @@ export default function CreateGroupPage() {
             privacy_level: form.privacy,
             password: form.privacy === "private" ? form.password : null,
             member_limit: Number(form.member_limit) || 10,
+            currency: form.currency,
           },
         }
       );
@@ -173,6 +179,37 @@ export default function CreateGroupPage() {
               className="w-24 px-2 py-2 rounded bg-gray-700 text-white border border-cyan-700"
               required
             />
+          </div>
+          <div className="flex gap-4 items-center">
+            <label className="text-white font-semibold">العملة الموحدة:</label>
+            <select
+              name="currency"
+              value={form.currency}
+              onChange={handleChange}
+              className="px-3 py-2 rounded bg-gray-700 text-white border border-cyan-700"
+              required
+            >
+              <option value="">اختر العملة</option>
+              <option value="EGP">جنيه مصري (EGP)</option>
+              <option value="USD">دولار أمريكي (USD)</option>
+              <option value="EUR">يورو (EUR)</option>
+              <option value="SAR">ريال سعودي (SAR)</option>
+              <option value="AED">درهم إماراتي (AED)</option>
+              <option value="KWD">دينار كويتي (KWD)</option>
+              <option value="QAR">ريال قطري (QAR)</option>
+              <option value="OMR">ريال عماني (OMR)</option>
+              <option value="BHD">دينار بحريني (BHD)</option>
+              <option value="JOD">دينار أردني (JOD)</option>
+              <option value="TRY">ليرة تركية (TRY)</option>
+              <option value="MAD">درهم مغربي (MAD)</option>
+              <option value="ILS">شيكل إسرائيلي (ILS)</option>
+              <option value="CHF">فرنك سويسري (CHF)</option>
+              <option value="CAD">دولار كندي (CAD)</option>
+              <option value="AUD">دولار أسترالي (AUD)</option>
+              <option value="JPY">ين ياباني (JPY)</option>
+              <option value="CNY">يوان صيني (CNY)</option>
+              <option value="INR">روبية هندية (INR)</option>
+            </select>
           </div>
           {error && (
             <div className="text-red-400 font-semibold text-center">

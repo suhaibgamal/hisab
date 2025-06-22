@@ -95,4 +95,56 @@ END;
 $$;
 
 -- Grant execution rights to authenticated users
-GRANT EXECUTE ON FUNCTION public.change_group_member_role(uuid, uuid, text) TO authenticated; 
+GRANT EXECUTE ON FUNCTION public.change_group_member_role(uuid, uuid, text) TO authenticated;
+
+-- 3. Drop old function if exists (for idempotency)
+DROP FUNCTION IF EXISTS public.kick_group_member(uuid, uuid);
+
+-- 4. Create the new function
+CREATE OR REPLACE FUNCTION public.kick_group_member(
+  p_group_id uuid,
+  p_user_to_kick_id uuid
+) RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_kicker_id uuid;
+  v_kicker_role text;
+  v_kickee_role text;
+  v_group_name text;
+BEGIN
+  -- Get the current user's ID
+  SELECT public.get_current_user_app_id() INTO v_kicker_id;
+  -- Get roles
+  SELECT role INTO v_kicker_role FROM public.group_members WHERE group_id = p_group_id AND user_id = v_kicker_id;
+  SELECT role INTO v_kickee_role FROM public.group_members WHERE group_id = p_group_id AND user_id = p_user_to_kick_id;
+  -- Get group name
+  SELECT name INTO v_group_name FROM public.groups WHERE id = p_group_id;
+  -- Check permissions
+  IF v_kicker_role IS NULL THEN
+    RAISE EXCEPTION 'You are not a member of this group';
+  END IF;
+  IF v_kicker_role != 'manager' THEN
+    RAISE EXCEPTION 'Only managers can kick members';
+  END IF;
+  IF v_kickee_role = 'manager' THEN
+    RAISE EXCEPTION 'Cannot kick a manager';
+  END IF;
+  -- Delete the member
+  DELETE FROM public.group_members WHERE group_id = p_group_id AND user_id = p_user_to_kick_id;
+  -- Log the kick action
+  INSERT INTO public.activity_logs (
+    group_id, user_id, action_type, payload
+  ) VALUES (
+    p_group_id,
+    v_kicker_id,
+    'kick_member',
+    jsonb_build_object(
+      'target_user_id', p_user_to_kick_id,
+      'target_role', v_kickee_role,
+      'group_name', v_group_name
+    )
+  );
+END;
+$$; 

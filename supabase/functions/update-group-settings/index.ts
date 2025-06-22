@@ -18,11 +18,31 @@ serve(async (req) => {
       invite_code_visible,
       activity_log_privacy,
       export_control,
+      privacy_level,
     } = await req.json();
+
+    // Extract user_id from JWT
+    function parseJwt(token) {
+      if (!token) return {};
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split("")
+          .map(function (c) {
+            return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+          })
+          .join("")
+      );
+      return JSON.parse(jsonPayload);
+    }
+    const authHeader = req.headers.get("Authorization");
+    const jwt = authHeader?.replace("Bearer ", "");
+    const { sub: user_id } = parseJwt(jwt);
 
     // Basic input validation
     if (!group_id || !name) {
-      throw new Error("Group ID and name are required.");
+      throw new Error("معرّف المجموعة والاسم مطلوبان.");
     }
 
     let parsed_member_limit = member_limit;
@@ -30,7 +50,7 @@ serve(async (req) => {
       parsed_member_limit = parseInt(parsed_member_limit, 10);
       if (isNaN(parsed_member_limit) || parsed_member_limit < 2) {
         throw new Error(
-          "Member limit must be a valid integer of 2 or greater."
+          "يجب أن يكون الحد الأقصى للأعضاء رقمًا صحيحًا أكبر من أو يساوي 2."
         );
       }
     }
@@ -52,6 +72,7 @@ serve(async (req) => {
       "update_group_settings_securely",
       {
         p_group_id: group_id,
+        p_user_id: user_id,
         p_name: name,
         p_description: description,
         p_password: password, // Pass the password directly; logic is handled in SQL.
@@ -59,10 +80,14 @@ serve(async (req) => {
         p_invite_code_visible: invite_code_visible ?? true,
         p_activity_log_privacy: activity_log_privacy ?? "managers",
         p_export_control: export_control ?? "managers",
+        p_privacy_level: privacy_level,
       }
     );
 
-    if (rpcError) throw rpcError;
+    if (rpcError)
+      throw new Error(
+        rpcError.message || "حدث خطأ غير متوقع أثناء تحديث إعدادات المجموعة."
+      );
 
     return new Response(
       JSON.stringify({
@@ -77,10 +102,10 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("Error in update-group-settings:", error);
     return new Response(
       JSON.stringify({
-        error: error.message,
+        error:
+          error.message || "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى لاحقًا.",
       }),
       {
         headers: {

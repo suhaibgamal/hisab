@@ -1,6 +1,9 @@
 -- Migration: Fix ambiguity in can_view_activity_logs function parameter
 -- Date: 2025-07-12
 
+-- Drop the policy first to avoid dependency errors
+DROP POLICY IF EXISTS "activity_logs_select_policy" ON public.activity_logs;
+
 DROP FUNCTION IF EXISTS public.can_view_activity_logs(uuid);
 
 CREATE OR REPLACE FUNCTION public.can_view_activity_logs(p_group_id uuid)

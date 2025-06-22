@@ -1,4 +1,5 @@
 import Modal from "./Modal";
+import { formatCurrency } from "../../app/group/[groupId]/utils";
 
 export default function SettingsModal({
   isOpen,
@@ -8,6 +9,7 @@ export default function SettingsModal({
   onSubmit,
   members,
   loading,
+  group,
 }) {
   const footer = (
     <>
@@ -58,6 +60,9 @@ export default function SettingsModal({
                 minLength={3}
                 maxLength={50}
               />
+              <div className="text-xs text-gray-400 mt-1">
+                اسم واضح للمجموعة ليسهل تمييزها.
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -71,6 +76,9 @@ export default function SettingsModal({
                 rows={3}
                 maxLength={500}
               />
+              <div className="text-xs text-gray-400 mt-1">
+                وصف مختصر عن هدف أو طبيعة المجموعة (اختياري).
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -84,8 +92,10 @@ export default function SettingsModal({
               >
                 <option value="public">عامة</option>
                 <option value="private">خاصة (بكلمة مرور)</option>
-                <option value="invite_only">الدعوة فقط</option>
               </select>
+              <div className="text-xs text-gray-400 mt-1">
+                المجموعات الخاصة تتطلب كلمة مرور للانضمام.
+              </div>
             </div>
             {settings.updated_at && (
               <div>
@@ -107,7 +117,7 @@ export default function SettingsModal({
                 value={settings.password}
                 onChange={onSettingsChange}
                 className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded-md"
-                minLength={settings.privacy_level === "private" ? 6 : undefined}
+                minLength={settings.privacy_level === "private" ? 8 : undefined}
                 placeholder={
                   settings.privacy_level === "private"
                     ? "أدخل كلمة مرور جديدة أو اتركها فارغة لإزالة كلمة المرور"
@@ -115,6 +125,21 @@ export default function SettingsModal({
                 }
                 disabled={settings.privacy_level !== "private"}
               />
+              <div className="text-xs text-gray-400 mt-1">
+                للمجموعات الخاصة فقط. اتركها فارغة لعدم التغيير أو لإزالة كلمة
+                المرور.
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                العملة الموحدة
+              </label>
+              <div className="w-full px-3 py-2 bg-gray-700 text-gray-200 rounded-md cursor-not-allowed opacity-70">
+                {formatCurrency(0, group.currency)}
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                لا يمكن تغيير العملة بعد إنشاء المجموعة.
+              </div>
             </div>
           </div>
         </div>
@@ -127,7 +152,7 @@ export default function SettingsModal({
           <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 p-4 rounded-lg space-y-6 border border-cyan-900/40">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
-                الحد الأقصى للأعضاء ({members.length} حالياً)
+                الحد الأقصى للأعضاء (عدد الأعضاء الحالي: {members.length})
               </label>
               <input
                 type="number"
@@ -138,6 +163,9 @@ export default function SettingsModal({
                 min={members.length}
                 max={100}
               />
+              <div className="text-xs text-gray-400 mt-1">
+                يجب أن يكون الحد الأقصى أكبر أو يساوي عدد الأعضاء الحاليين.
+              </div>
             </div>
             <div className="flex items-center">
               <input
@@ -154,6 +182,9 @@ export default function SettingsModal({
               >
                 إظهار رمز الدعوة للأعضاء
               </label>
+              <div className="text-xs text-gray-400 mt-1">
+                إذا تم تفعيل هذا الخيار، سيتمكن جميع الأعضاء من رؤية رمز الدعوة.
+              </div>
             </div>
           </div>
         </div>
@@ -177,6 +208,9 @@ export default function SettingsModal({
                 <option value="managers">المديرون فقط</option>
                 <option value="all">كل الأعضاء</option>
               </select>
+              <div className="text-xs text-gray-400 mt-1">
+                حدد من يمكنه الاطلاع على سجل النشاط الخاص بالمجموعة.
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -191,6 +225,9 @@ export default function SettingsModal({
                 <option value="managers">المديرون فقط</option>
                 <option value="all">كل الأعضاء</option>
               </select>
+              <div className="text-xs text-gray-400 mt-1">
+                حدد من يمكنه تصدير بيانات المجموعة إلى ملف.
+              </div>
             </div>
           </div>
         </div>

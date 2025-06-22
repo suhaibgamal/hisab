@@ -41,7 +41,7 @@ serve(async (req: Request) => {
     if (signInError) {
       if (signInError.message.includes("Invalid login credentials")) {
         return new Response(
-          JSON.stringify({ error: "Invalid username or password." }),
+          JSON.stringify({ error: "كلمة المرور غير صحيحة" }),
           {
             status: 401,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -59,10 +59,6 @@ serve(async (req: Request) => {
       .single();
 
     if (profileError || !userProfile) {
-      console.error(
-        "Auth user exists but profile is missing:",
-        profileError?.message
-      );
       throw new Error(
         "Login succeeded, but we couldn't load your user profile. Please contact support."
       );
@@ -76,7 +72,6 @@ serve(async (req: Request) => {
       }
     );
   } catch (error) {
-    console.error("Critical error in login:", error.message);
     const message =
       error.message || "An unexpected server error occurred during login.";
     return new Response(JSON.stringify({ error: message }), {
