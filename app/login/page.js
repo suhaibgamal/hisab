@@ -1,10 +1,19 @@
 "use client";
+import { Suspense } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import LoadingSpinner from "../../components/LoadingSpinner";
 
-export default function LoginPage() {
+export default function LoginPageWrapper() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <LoginPage />
+    </Suspense>
+  );
+}
+
+function LoginPage() {
   const { user, loading, handleAuthAction, authLoading, authError } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
