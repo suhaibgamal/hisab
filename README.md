@@ -1,7 +1,5 @@
 # Hisab – Arabic Expense Sharing Web App
 
-![Hisab Banner](public/android-chrome-512x512.png)
-
 ## Overview
 
 **Hisab** (حساب) is a modern, open-source web application for managing and splitting shared expenses and settling debts among friends and family, with a focus on Arabic-speaking users. Built with Next.js, Supabase, and Tailwind CSS, Hisab offers a seamless, secure, and mobile-friendly experience.
@@ -24,16 +22,6 @@
 ## Demo
 
 > **Live Demo:** _Coming soon!_
-
----
-
-## Screenshots
-
-| Landing Page                                  | Group Overview                        | Add Payment                      |
-| --------------------------------------------- | ------------------------------------- | -------------------------------- |
-| ![Landing](public/android-chrome-192x192.png) | ![Group](public/apple-touch-icon.png) | ![Add](public/favicon-32x32.png) |
-
----
 
 ## Technologies Used
 
