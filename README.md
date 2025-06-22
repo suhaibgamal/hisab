@@ -21,7 +21,7 @@
 
 ## Demo
 
-> **Live Demo:** _Coming soon!_
+> **Live Demo:** _https://hisab.suhaeb.com_
 
 ## Technologies Used
 
