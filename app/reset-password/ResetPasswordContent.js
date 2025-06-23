@@ -41,7 +41,26 @@ export default function ResetPasswordContent() {
     }
     setLoading(true);
     try {
-      // Supabase automatically sets the session from the access_token in the URL
+      // Extract tokens from URL
+      const access_token = searchParams.get("access_token");
+      const refresh_token =
+        searchParams.get("refresh_token") || searchParams.get("code");
+      if (!access_token || !refresh_token) {
+        setError("رابط الاستعادة غير صالح أو منتهي الصلاحية.");
+        setLoading(false);
+        return;
+      }
+      // Set the session
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
+      if (sessionError) {
+        setError("حدث خطأ أثناء التحقق من الرابط. يرجى المحاولة مرة أخرى.");
+        setLoading(false);
+        return;
+      }
+      // Now update the password
       const { error: updateError } = await supabase.auth.updateUser({
         password,
       });
