@@ -75,7 +75,7 @@ export function AuthProvider({ children }) {
 
   // Handle login or register
   const handleAuthAction = useCallback(
-    async ({ username, password, displayName, isNewUser }) => {
+    async ({ username, password, displayName, email, isNewUser }) => {
       setAuthLoading(true);
       try {
         const functionName = isNewUser ? "create-user" : "login";
@@ -84,6 +84,7 @@ export function AuthProvider({ children }) {
             username: username.trim(),
             password,
             displayName: isNewUser ? displayName?.trim() : undefined,
+            email: isNewUser ? email?.trim() : undefined,
           },
         });
 
