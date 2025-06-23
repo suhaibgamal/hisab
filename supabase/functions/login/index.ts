@@ -32,7 +32,19 @@ serve(async (req: Request) => {
     }
     // --- End Input Validation ---
 
-    const email = `${username}@hisab.local`;
+    // Try to find the user's real email in the users table
+    let email;
+    const { data: userEmailProfile, error: userEmailProfileError } =
+      await supabaseAdmin
+        .from("users")
+        .select("email")
+        .eq("username", username)
+        .maybeSingle();
+    if (userEmailProfile && userEmailProfile.email) {
+      email = userEmailProfile.email;
+    } else {
+      email = `${username}@hisab.local`;
+    }
 
     // 1. Sign in the user with their credentials
     const { data: signInData, error: signInError } =
