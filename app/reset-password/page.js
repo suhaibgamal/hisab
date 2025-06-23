@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "../lib/supabase";
-import LoadingSpinner from "../components/LoadingSpinner";
+import { supabase } from "../../lib/supabase";
+import LoadingSpinner from "../../components/LoadingSpinner";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
