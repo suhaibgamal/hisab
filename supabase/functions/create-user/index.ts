@@ -18,13 +18,13 @@ serve(async (req: Request) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const { username, password, displayName } = await req.json();
+    const { username, password, displayName, email } = await req.json();
 
     // --- Input Validation ---
-    if (!username || !password || !displayName) {
+    if (!username || !password || !displayName || !email) {
       return new Response(
         JSON.stringify({
-          error: "Username, password, and display name are required.",
+          error: "Username, password, display name, and email are required.",
         }),
         {
           status: 400,
@@ -64,9 +64,42 @@ serve(async (req: Request) => {
         }
       );
     }
+    // Email format validation (simple regex)
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid email address format." }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
     // --- End Input Validation ---
 
-    const email = `${username}@hisab.local`;
+    // Check for duplicate email in users table
+    const { data: existingUser, error: userQueryError } = await supabaseAdmin
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+    if (userQueryError) {
+      return new Response(
+        JSON.stringify({ error: "Server error. Please try again later." }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+    if (existingUser) {
+      return new Response(
+        JSON.stringify({ error: "Email is already in use." }),
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
 
     // 1. Create the auth user in Supabase Auth
     const {
@@ -79,38 +112,48 @@ serve(async (req: Request) => {
     });
 
     if (signUpError) {
-      console.error("Sign-up error:", signUpError.message);
       if (signUpError.message.includes("User already registered")) {
         return new Response(
-          JSON.stringify({
-            error: "A user with this username already exists.",
-          }),
+          JSON.stringify({ error: "A user with this email already exists." }),
           {
             status: 409,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           }
         );
       }
-      throw new Error("Failed to create authentication profile.");
+      return new Response(
+        JSON.stringify({ error: "Failed to create authentication profile." }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     // 2. Create the public user profile in our `users` table
     const { data: newUserProfile, error: createProfileError } =
-      await supabaseAdmin.rpc("create_user_profile", {
-        p_username: username,
-        p_display_name: displayName,
-        p_supabase_auth_id: authUser.id,
-      });
+      await supabaseAdmin
+        .from("users")
+        .insert({
+          username,
+          display_name: displayName,
+          email,
+          supabase_auth_id: authUser.id,
+        })
+        .select()
+        .maybeSingle();
 
     if (createProfileError) {
-      console.error(
-        "Failed to create user profile, rolling back auth user:",
-        createProfileError.message
-      );
       // Critical: If profile creation fails, delete the orphaned auth user.
       await supabaseAdmin.auth.admin.deleteUser(authUser.id);
-      throw new Error(
-        "We couldn't create your user profile after registration. Please try again."
+      return new Response(
+        JSON.stringify({
+          error: "Failed to create user profile. Please try again.",
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
@@ -119,12 +162,17 @@ serve(async (req: Request) => {
       await supabaseAdmin.auth.signInWithPassword({ email, password });
 
     if (signInError || !signInData.session) {
-      console.error(
-        "Failed to sign in new user after creation:",
-        signInError?.message
-      );
-      throw new Error(
-        "Your account was created, but we failed to sign you in. Please try logging in manually."
+      await supabaseAdmin.auth.admin.deleteUser(authUser.id);
+      await supabaseAdmin.from("users").delete().eq("id", newUserProfile.id);
+      return new Response(
+        JSON.stringify({
+          error:
+            "Your account was created, but we failed to sign you in. Please try logging in manually.",
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
@@ -136,9 +184,8 @@ serve(async (req: Request) => {
       }
     );
   } catch (error) {
-    console.error("Critical error in create-user:", error.message);
     const message =
-      error.message ||
+      error?.message ||
       "An unexpected server error occurred during registration.";
     return new Response(JSON.stringify({ error: message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
