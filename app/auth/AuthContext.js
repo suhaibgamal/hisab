@@ -11,6 +11,7 @@ import {
 import { supabase } from "../../lib/supabase";
 import { toast } from "sonner";
 import { useSessionContext, useUser } from "@supabase/auth-helpers-react";
+import { useRouter } from "next/navigation";
 
 const AuthContext = createContext({});
 
@@ -22,6 +23,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
+  const router = useRouter();
 
   // Fetch user profile and groups when userObj changes
   useEffect(() => {
@@ -68,10 +70,11 @@ export function AuthProvider({ children }) {
     try {
       await supabase.auth.signOut();
       toast.success("تم تسجيل الخروج بنجاح");
+      router.replace("/login");
     } catch (err) {
       toast.error("فشل تسجيل الخروج");
     }
-  }, []);
+  }, [router]);
 
   // Handle login or register
   const handleAuthAction = useCallback(
