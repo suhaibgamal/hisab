@@ -48,20 +48,11 @@ export default function ResetPasswordContent() {
         setLoading(false);
         return;
       }
-      // Set the session with only the access_token
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token,
-        refresh_token: "", // Not required for password reset
-      });
-      if (sessionError) {
-        setError("حدث خطأ أثناء التحقق من الرابط. يرجى المحاولة مرة أخرى.");
-        setLoading(false);
-        return;
-      }
-      // Now update the password
-      const { error: updateError } = await supabase.auth.updateUser({
-        password,
-      });
+      // Call updateUser with the access_token in the Authorization header
+      const { error: updateError } = await supabase.auth.updateUser(
+        { password },
+        { headers: { Authorization: `Bearer ${access_token}` } }
+      );
       if (updateError) {
         setError("فشل تحديث كلمة المرور. ربما انتهت صلاحية الرابط أو حدث خطأ.");
         setLoading(false);
