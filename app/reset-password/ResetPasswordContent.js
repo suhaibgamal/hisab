@@ -41,19 +41,17 @@ export default function ResetPasswordContent() {
     }
     setLoading(true);
     try {
-      // Extract tokens from URL
+      // Extract access_token from URL
       const access_token = searchParams.get("access_token");
-      const refresh_token =
-        searchParams.get("refresh_token") || searchParams.get("code");
-      if (!access_token || !refresh_token) {
+      if (!access_token) {
         setError("رابط الاستعادة غير صالح أو منتهي الصلاحية.");
         setLoading(false);
         return;
       }
-      // Set the session
+      // Set the session with only the access_token
       const { error: sessionError } = await supabase.auth.setSession({
         access_token,
-        refresh_token,
+        refresh_token: "", // Not required for password reset
       });
       if (sessionError) {
         setError("حدث خطأ أثناء التحقق من الرابط. يرجى المحاولة مرة أخرى.");
