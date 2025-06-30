@@ -164,7 +164,8 @@ export default function SettingsModal({
                 max={100}
               />
               <div className="text-xs text-gray-400 mt-1">
-                يجب أن يكون الحد الأقصى أكبر أو يساوي عدد الأعضاء الحاليين.
+                يجب أن يكون الحد الأقصى أكبر أو يساوي عدد الأعضاء الحاليين، ولا
+                يمكن أن يكون أقل من 2.
               </div>
             </div>
             <div className="flex items-center">
