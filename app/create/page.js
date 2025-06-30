@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import { toast } from "sonner";
+import Link from "next/link";
 
 export default function CreateGroupPage() {
   const router = useRouter();
@@ -79,6 +80,28 @@ export default function CreateGroupPage() {
   if (createdGroup) {
     return (
       <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-gray-900 via-gray-950 to-cyan-900">
+        <div className="w-full max-w-md mb-6">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 px-3 py-1.5 border border-cyan-400 text-cyan-300 rounded-lg hover:bg-cyan-900/30 transition text-sm"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            العودة للوحة التحكم
+          </Link>
+        </div>
         <div className="w-full max-w-md p-8 bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40 text-center">
           <h1 className="text-3xl font-bold text-white mb-6">
             تم إنشاء المجموعة بنجاح!
@@ -103,12 +126,6 @@ export default function CreateGroupPage() {
           >
             الذهاب إلى المجموعة
           </button>
-          <button
-            onClick={() => router.replace("/dashboard")}
-            className="w-full py-2 rounded-lg bg-gray-700 hover:bg-gray-800 text-white font-semibold text-base shadow"
-          >
-            العودة للوحة التحكم
-          </button>
         </div>
       </main>
     );
@@ -116,6 +133,28 @@ export default function CreateGroupPage() {
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-gray-900 via-gray-950 to-cyan-900">
+      <div className="w-full max-w-md mb-6">
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-2 px-3 py-1.5 border border-cyan-400 text-cyan-300 rounded-lg hover:bg-cyan-900/30 transition text-sm"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+          العودة للوحة التحكم
+        </Link>
+      </div>
       <div className="w-full max-w-md p-8 bg-gradient-to-br from-gray-800 via-gray-900 to-cyan-950 rounded-2xl shadow-xl border border-cyan-900/40">
         <h1 className="text-3xl font-bold text-white mb-6 text-center">
           إنشاء مجموعة جديدة
@@ -191,18 +230,28 @@ export default function CreateGroupPage() {
             >
               <option value="">اختر العملة</option>
               <option value="EGP">جنيه مصري (EGP)</option>
-              <option value="USD">دولار أمريكي (USD)</option>
-              <option value="EUR">يورو (EUR)</option>
               <option value="SAR">ريال سعودي (SAR)</option>
               <option value="AED">درهم إماراتي (AED)</option>
               <option value="KWD">دينار كويتي (KWD)</option>
               <option value="QAR">ريال قطري (QAR)</option>
               <option value="OMR">ريال عماني (OMR)</option>
               <option value="BHD">دينار بحريني (BHD)</option>
-              <option value="JOD">دينار أردني (JOD)</option>
-              <option value="TRY">ليرة تركية (TRY)</option>
+              <option value="JOD">دينار أردني (JOD) - فلسطين/الأردن</option>
+              <option value="DZD">دينار جزائري (DZD)</option>
+              <option value="TND">دينار تونسي (TND)</option>
+              <option value="LYD">دينار ليبي (LYD)</option>
               <option value="MAD">درهم مغربي (MAD)</option>
-              <option value="ILS">شيكل إسرائيلي (ILS)</option>
+              <option value="SDG">جنيه سوداني (SDG)</option>
+              <option value="LBP">جنيه لبناني (LBP)</option>
+              <option value="SYP">جنيه سوري (SYP)</option>
+              <option value="IQD">دينار عراقي (IQD)</option>
+              <option value="MRU">أوقية موريتانية (MRU)</option>
+              <option value="DJF">فرنك جيبوتي (DJF)</option>
+              <option value="KMF">فرنك جزر القمر (KMF)</option>
+              <option value="SOS">شلن صومالي (SOS)</option>
+              <option value="YER">ريال يمني (YER)</option>
+              <option value="USD">دولار أمريكي (USD)</option>
+              <option value="EUR">يورو (EUR)</option>
               <option value="CHF">فرنك سويسري (CHF)</option>
               <option value="CAD">دولار كندي (CAD)</option>
               <option value="AUD">دولار أسترالي (AUD)</option>
