@@ -2,19 +2,53 @@ name: Keep Supabase Awake
 
 on:
   schedule:
-    - cron: "0 */12 * * *"  # Every 12 hours
+    # Run every 12 hours to stay well under the 7-day inactivity window
+    - cron: "0 */12 * * *"
+  # Let you trigger it manually from the Actions tab
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Ping Supabase REST API
+      # Optional but standard; keep or remove as you like
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Ping Supabase REST API (groups table)
         env:
+          # Set these in: Settings → Secrets and variables → Actions
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          curl -s "$SUPABASE_URL/rest/v1/your_table?select=id&limit=1" \
+          echo "Pinging Supabase REST API..."
+
+          # Basic safety check for missing secrets
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::error::SUPABASE_URL or SUPABASE_ANON_KEY is not set"
+            exit 1
+          fi
+
+          # Query the 'groups' table; change table name here if needed
+          REQUEST_URL="$SUPABASE_URL/rest/v1/groups?select=id&limit=1"
+          echo "Request URL: $REQUEST_URL"
+
+          # Call Supabase and capture HTTP status + body
+          STATUS_CODE=$(curl -sS -o /tmp/response.txt -w "%{http_code}" \
+            "$REQUEST_URL" \
             -H "apikey: $SUPABASE_ANON_KEY" \
             -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
-            || true
+          ) || true
+
+          echo "HTTP status: $STATUS_CODE"
+
+          echo "Response (first 500 chars):"
+          head -c 500 /tmp/response.txt || true
+          echo
+
+          # Soft-check: warn on non-2xx/3xx, but don't fail the workflow
+          # (it still counts as 'activity' even if it's 401/403/etc.)
+          if [ "$STATUS_CODE" -lt 200 ] || [ "$STATUS_CODE" -ge 400 ]; then
+            echo "::warning::Supabase ping returned non-2xx/3xx status code: $STATUS_CODE"
+          fi
